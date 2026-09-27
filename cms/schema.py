@@ -7,6 +7,7 @@ from starlette_cms import (
     CMS,
     BoolField,
     DateField,
+    DoodleField,
     JSONField,
     ListField,
     NumberField,
@@ -70,6 +71,7 @@ def register_documents(cms: CMS) -> None:
                 "(links_by_tag). Shown after the body, in this order."
             ),
         )
+        doodles: list = DoodleField(label="Doodles")           # decorative SVG overlays, see DoodleOverlay.astro
         featured: bool = BoolField(default=False)
         reading_time: float | None = NumberField(min_value=0.0, precision=0)
 
@@ -181,3 +183,18 @@ def register_documents(cms: CMS) -> None:
             ),
         )
         tags: list | None = TagsField()
+
+
+def register_blocks(cms: CMS) -> None:
+    """Register singleton/config blocks with the CMS instance."""
+
+    @cms.block("site_doodles", singleton=True)
+    class SiteDoodles:
+        # Decorative doodles not tied to any post — one named slot per static
+        # page, so a typo'd slot can't silently drop a doodle. Bootstrap with
+        # POST /api/documents/singleton/site_doodles; read with GET on the
+        # same path (never the generic /api/documents list — it doesn't
+        # filter on singleton_status, see starlette-cms docs).
+        homepage: list = DoodleField(label="Homepage doodles")
+        about: list = DoodleField(label="About page doodles")
+        blog_index: list = DoodleField(label="Blog index doodles")
