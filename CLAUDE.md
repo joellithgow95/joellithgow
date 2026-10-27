@@ -83,7 +83,7 @@ The Astro frontend is rebuilt on Netlify. **Publishing rebuilds the site automat
 The site is built from published documents only, so a post that was never published has no card on `/blog`. When you are logged in and press **Edit** there, the embed script draws a card for each unpublished `blog_post` and `definition` from the `<template data-cms-draft-template="…">` blocks in `src/pages/blog/[...page].astro` (latest quarter only, where a new post would land), and the picker next to Edit chooses which: live + all drafts (default), live only, or live + one open changeset. The contract and its limits live in the astraeus editor README (*Inline editing on a static site*). Things worth knowing:
 
 - Only `blog_post` and `definition`. Gateway drafts (Spotify months, iNat outings held for review) are not drawn; edit those in the editor shell. A drawn definition is a read-only preview, like the live definition cards on the index; edit its term, definition and notes in the shell.
-- The template is one article-style card, so a `collection` draft shows without its links; open it in the shell for that.
+- The template is one post card without links, so a draft with `links` shows without them; open it in the shell for that.
 - **New drafts collect in a "Staging" changeset** (`CMS(default_changeset=…)`, `CMS_DEFAULT_CHANGESET`, default `Staging`; empty turns it off; astraeus ADR 025). A post made with `create_document` (the MCP bot, hermes), or an edit that names no changeset, joins the open changeset called Staging, made if none is open; publishing it starts a fresh one next time. The toolbar's **Publish** ships the changeset you are working in, else Staging, and the confirm says which and how many documents (so on a phone: log in, Edit, check the posts, Publish). Staging is a bag: it ships everything in it, so move a half-written post to another changeset in the panel first. Gateway runs name their own changeset and are not affected. Publishing one document on its own (`publish_document`) takes it out of Staging.
 - **Drafts made before Staging existed are in no changeset**, so publishing Staging skips them. Move them once with `uv run python -m cms.stage_orphan_drafts --cms-url https://cms.joellithgow.com` (a dry run that lists them; add `--api-key "$CMS_API_KEY" --apply` to move them). Safe to re-run. It changes no document.
 - *All drafts* in the picker shows every unpublished post whether or not it is in a changeset, so it still finds strays.
@@ -234,7 +234,7 @@ src/content/config.ts           # collection definitions + Zod schemas
 
 | Collection | CMS doc type | Notes |
 |---|---|---|
-| `blog` | `blog_post` | Articles, link collections |
+| `blog` | `blog_post` | Every post (one type: articles, short thoughts, link lists) |
 | `projects` | `project_page` | Case studies |
 | `experience` | `experience_entry` | Work history |
 | `spotifyDumps` | `spotify_liked_dump` | Gateway-sourced |
@@ -244,10 +244,10 @@ src/content/config.ts           # collection definitions + Zod schemas
 
 ### Writing content
 
-**`cms/schema.py` is the source of truth for field names and types.** `src/lib/astraeus-types.ts` and `src/content/config.ts` mirror it by hand, so check `schema.py` first if they disagree. For voice, `post_type` meanings and tag habits, see `docs/blog-conventions.md`.
+**`cms/schema.py` is the source of truth for field names and types.** `src/lib/astraeus-types.ts` and `src/content/config.ts` mirror it by hand, so check `schema.py` first if they disagree. For voice, how a post shows on the feed and tag habits, see `docs/blog-conventions.md`.
 
-- CMS fields are `snake_case` (`publish_date`, `post_type`, `has_detail_page`). The legacy markdown files in `src/content/blog/` are seed sources with `camelCase` frontmatter (`publishDate`, `type`, `hasDetailPage`). The site reads from the CMS, not from those files.
-- A definition is **not** a blog post: it has `term`, `definition`, `personal_notes`, `sources`, `tags` and no `post_type` of its own. The site gives it a synthetic `post_type: 'definition'` when it merges definitions into blog feeds (`src/lib/astraeus.ts`).
+- CMS fields are `snake_case` (`publish_date`, `reading_time`). The legacy markdown files in `src/content/blog/` are seed sources with `camelCase` frontmatter (`publishDate`, `readingTime`); their `type` and `hasDetailPage` are no longer read. The site reads from the CMS, not from those files.
+- A definition is **not** a blog post: it has `term`, `definition`, `personal_notes`, `sources`, `tags` and no `kind` of its own. The site tags each feed item with a synthetic `kind` (`post`, `spotify_dump`, `nature_outing`, `definition`) when it merges them into blog feeds (`src/lib/astraeus.ts`). `blog_post` has no type field: every post has a detail page, and the feed card shows the excerpt, or the whole body when it is short (see `docs/blog-conventions.md`).
 - Publishing, unpublishing and deleting fire the Netlify build hook through a CMS webhook. See *Rebuilding the site*.
 
 ## Gotchas

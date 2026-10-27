@@ -28,10 +28,10 @@ import type {
 // ---------------------------------------------------------------------------
 
 export type AnyBlogPost =
-  | (AstraeusDocument<BlogPost> & { post_type: 'article' | 'thought' | 'collection' })
-  | (AstraeusDocument<SpotifyDump> & { post_type: 'spotify_dump' })
-  | (AstraeusDocument<NatureOuting> & { post_type: 'nature_outing' })
-  | (AstraeusDocument<Definition> & { post_type: 'definition' });
+  | (AstraeusDocument<BlogPost> & { kind: 'post' })
+  | (AstraeusDocument<SpotifyDump> & { kind: 'spotify_dump' })
+  | (AstraeusDocument<NatureOuting> & { kind: 'nature_outing' })
+  | (AstraeusDocument<Definition> & { kind: 'definition' });
 
 // ---------------------------------------------------------------------------
 // Blog posts
@@ -41,7 +41,7 @@ export type AnyBlogPost =
  * Fetch all published blog posts, Spotify dumps, and iNaturalist outings,
  * merged and sorted by publish_date descending.
  *
- * Returns the AnyBlogPost union type — callers should branch on post_type.
+ * Returns the AnyBlogPost union type — callers should branch on kind.
  */
 export async function fetchBlogPosts(): Promise<AnyBlogPost[]> {
   const [blogEntries, dumpEntries, outingEntries, definitionEntries] = await Promise.all([
@@ -52,18 +52,21 @@ export async function fetchBlogPosts(): Promise<AnyBlogPost[]> {
   ]);
 
   const posts: AnyBlogPost[] = [
-    ...blogEntries.map((e) => e.data as AstraeusDocument<BlogPost> & { post_type: 'article' | 'thought' | 'collection' }),
+    ...blogEntries.map((e) => ({
+      ...(e.data as AstraeusDocument<BlogPost>),
+      kind: 'post' as const,
+    })),
     ...dumpEntries.map((e) => ({
       ...(e.data as AstraeusDocument<SpotifyDump>),
-      post_type: 'spotify_dump' as const,
+      kind: 'spotify_dump' as const,
     })),
     ...outingEntries.map((e) => ({
       ...(e.data as AstraeusDocument<NatureOuting>),
-      post_type: 'nature_outing' as const,
+      kind: 'nature_outing' as const,
     })),
     ...definitionEntries.map((e) => ({
       ...(e.data as AstraeusDocument<Definition>),
-      post_type: 'definition' as const,
+      kind: 'definition' as const,
     })),
   ];
 

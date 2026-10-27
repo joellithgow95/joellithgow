@@ -511,19 +511,12 @@ def load_blog_post(path: Path) -> dict[str, Any]:
     fm, body = _parse_frontmatter(text)
 
     slug = _slug_from_path(path)
-    post_type = fm.get("type", "article")
-
-    # Auto-derive hasDetailPage
-    has_detail_page = fm.get("hasDetailPage")
-    if has_detail_page is None:
-        has_detail_page = post_type in ("article", "collection")
-
     # Normalize image field — drop 'link' sub-key (not in CMS schema)
     image = fm.get("image")
     if isinstance(image, dict):
         image = {k: v for k, v in image.items() if k != "link"}
 
-    # Normalize links for collection type
+    # Normalize links
     links = fm.get("links")
     if isinstance(links, list):
         normalized_links = []
@@ -563,7 +556,6 @@ def load_blog_post(path: Path) -> dict[str, Any]:
         "title": fm.get("title", ""),
         "description": fm.get("description", ""),
         "publish_date": publish_date or "",
-        "post_type": post_type,
         "body_markdown": body if body else None,
         "excerpt": fm.get("excerpt"),
         "author": fm.get("author", "Joel Lithgow"),
@@ -571,7 +563,6 @@ def load_blog_post(path: Path) -> dict[str, Any]:
         "links": links,
         "tags": fm.get("tags"),
         "featured": fm.get("featured", False),
-        "has_detail_page": has_detail_page,
         "reading_time": fm.get("readingTime"),
     }
 

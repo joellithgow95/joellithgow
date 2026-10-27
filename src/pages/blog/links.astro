@@ -15,9 +15,8 @@ import '../../styles/log.css';
 const allPosts = await fetchBlogPosts();
 const postsWithLinks = allPosts.filter(p => p.links && p.links.length > 0);
 
-// Link collections (collection-type posts) for the sidebar
-const collections = allPosts
-  .filter(p => p.post_type === 'collection')
+// Posts with links, for the sidebar
+const collections = postsWithLinks
   .sort((a, b) => new Date(b.publish_date).valueOf() - new Date(a.publish_date).valueOf());
 
 // Get all definitions that have link sources

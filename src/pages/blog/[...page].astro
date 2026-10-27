@@ -11,7 +11,6 @@ import Card from '@components/primitives/Card.astro';
 import Badge from '@components/primitives/Badge.astro';
 import Button from '@components/primitives/Button.astro';
 import PageTitle from '@components/ui/PageTitle.astro';
-import LinkCard from '@components/blog/LinkCard.astro';
 import Video from '@components/ui/Video.astro';
 import ImageGallery from '@components/modals/ImageGallery.astro';
 
@@ -110,14 +109,18 @@ function albumMosaic(songs: any[]): AlbumCell[] {
   return Array.from(map.values()).sort((a, b) => b.count - a.count);
 }
 
+// A post whose Markdown body is at most this long, with no excerpt, shows in
+// full on its feed card; a longer one is cut off with "Continue reading".
+const SHORT_BODY_CHARS = 800;
+
 // Total link count (blog posts only — new types have no links); feeds the sidebar "Links" card
-const linkCollectionPosts = allPosts.filter(post => post.post_type !== 'spotify_dump' && post.post_type !== 'nature_outing' && 'links' in post && (post as any).links && (post as any).links.length > 0);
+const linkCollectionPosts = allPosts.filter(post => post.kind === 'post' && post.links && post.links.length > 0);
 const totalLinks = linkCollectionPosts.reduce((sum, post) => sum + (('links' in post && (post as any).links?.length) || 0), 0);
 
 // Document-type counts for the "Browse" sidebar cards
-const spotifyCount = allPosts.filter(post => post.post_type === 'spotify_dump').length;
-const natureCount = allPosts.filter(post => post.post_type === 'nature_outing').length;
-const definitionCount = allPosts.filter(post => post.post_type === 'definition').length;
+const spotifyCount = allPosts.filter(post => post.kind === 'spotify_dump').length;
+const natureCount = allPosts.filter(post => post.kind === 'nature_outing').length;
+const definitionCount = allPosts.filter(post => post.kind === 'definition').length;
 
 // Sidebar: browse the log by document type (colored brutalist nav cards)
 const typeNav = [
@@ -178,14 +181,20 @@ const jsonLd = {
                 post would land. */}
             <div class="log-feed" data-cms-list={isLatest ? 'blog_post definition' : undefined}>
               {posts.map((post) => {
-                // Editorial types (not gateway-synced dumps/outings) can be
-                // edited inline from the index. data-cms-id scopes which
-                // document a field edit belongs to.
-                const isEditorial = ['article', 'thought', 'collection'].includes(post.post_type);
+                // Blog posts (not gateway-synced dumps/outings) can be edited
+                // inline from the index. data-cms-id scopes which document a
+                // field edit belongs to.
+                const isEditorial = post.kind === 'post';
+                const body = ('body_markdown' in post ? (post as any).body_markdown : null) ?? '';
+                const excerpt = ('excerpt' in post && (post as any).excerpt) || '';
+                const linkCount = ('links' in post && (post as any).links?.length) || 0;
+                // A short post shows its whole body on the card; a long one is
+                // cut off and links to its page.
+                const showsFullBody = !excerpt && SHORT_BODY_CHARS >= body.length;
                 return (
                 <article
                   class="log-record"
-                  data-type={post.post_type}
+                  data-type={post.kind}
                   data-cms-id={isEditorial ? (post as any)._id : undefined}
                   data-cms-type={isEditorial ? 'blog_post' : undefined}
                 >
@@ -193,20 +202,7 @@ const jsonLd = {
                     <time class="record-date" datetime={new Date(post.publish_date).toISOString()}>
                       {new Date(post.publish_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
                     </time>
-                {post.post_type === 'collection' ? (
-                  // Minimal collection card
-                  <Card variant="flat" as="article" class="collection-card-minimal">
-                    <a href={`/blog/${post.slug}`} class="collection-card-link">
-                      <h2 class="collection-title">
-                        <span data-cms-field="title">{post.title}</span>
-                        <Badge variant="tertiary" size="sm" class="collection-badge">
-                          {('links' in post && (post as any).links?.length) || 0} links
-                        </Badge>
-                      </h2>
-                      <p class="collection-description" data-cms-field="description">{post.description}</p>
-                    </a>
-                  </Card>
-                ) : post.post_type === 'spotify_dump' ? (
+                {post.kind === 'spotify_dump' ? (
                   // Spotify liked song dump — full inline card
                   <Card variant="flat" as="article" class="featured-post-card spotify-dump-card">
                     <header class="gateway-card-header">
@@ -248,7 +244,7 @@ const jsonLd = {
                       </div>
                     )}
                   </Card>
-                ) : post.post_type === 'nature_outing' ? (
+                ) : post.kind === 'nature_outing' ? (
                   // iNaturalist outing — full inline card
                   <Card variant="flat" as="article" class="featured-post-card nature-outing-card">
                     <header class="gateway-card-header">
@@ -313,7 +309,7 @@ const jsonLd = {
                       </div>
                     )}
                   </Card>
-                ) : post.post_type === 'definition' ? (
+                ) : post.kind === 'definition' ? (
                                   // Definition card — styled like a dictionary entry
                                   <Card variant="flat" as="article" class="featured-post-card" data-post-type="definition">
                                     <time
@@ -361,8 +357,8 @@ const jsonLd = {
                                     </div>
                                   </Card>
                                 ) : (
-                                  // Full post card (article / thought)
-                  <Card variant="flat" as="article" class="featured-post-card" data-post-type={post.post_type}>
+                                  // Blog post card
+                  <Card variant="flat" as="article" class="featured-post-card" data-post-type={post.kind}>
                     <time
                       datetime={new Date(post.publish_date).toISOString()}
                       class="post-date"
@@ -375,15 +371,14 @@ const jsonLd = {
                     </time>
 
                     <h2 class="post-title">
-                      {(post as any).has_detail_page !== false ? (
-                        <a
-                          href={`/blog/${post.slug}`}
-                          class="post-title-link"
-                        >
-                          <span data-cms-field="title">{post.title}</span>
-                        </a>
-                      ) : (
-                        <span class="post-title-text" data-cms-field="title">{post.title}</span>
+                      <a
+                        href={`/blog/${post.slug}`}
+                        class="post-title-link"
+                      >
+                        <span data-cms-field="title">{post.title}</span>
+                      </a>
+                      {linkCount > 0 && (
+                        <Badge variant="tertiary" size="sm" class="collection-badge">{linkCount} links</Badge>
                       )}
                     </h2>
 
@@ -393,7 +388,7 @@ const jsonLd = {
                         {(() => {
                           const img = (post as any).image;
                           const isVideo = img.type === 'video';
-                          const linkHref = img.link || ((post as any).has_detail_page !== false ? `/blog/${post.slug}` : null);
+                          const linkHref = img.link || `/blog/${post.slug}`;
                           const isExternal = img.link?.startsWith('http');
 
                           const media = isVideo ? (
@@ -434,33 +429,17 @@ const jsonLd = {
                         Editorial cards mark the preview as the body field, gated
                         behind an Expand toggle so the whole body is editable
                         inline without bloating the card for readers. */}
-                    {'excerpt' in post && (post as any).excerpt && (post as any).has_detail_page !== false ? (
-                      <div class="post-excerpt-preview" set:html={(post as any).excerpt}
+                    {excerpt ? (
+                      <div class="post-excerpt-preview" set:html={excerpt}
                         data-cms-field={isEditorial ? 'body_markdown' : undefined}
                         data-cms-collapsible={isEditorial ? '' : undefined}
                       />
                     ) : (
-                      <div class:list={['post-content-preview', { 'full-content': (post as any).has_detail_page === false }]}
-                        set:html={marked.parse(('body_markdown' in post ? (post as any).body_markdown : null) ?? '')}
+                      <div class:list={['post-content-preview', { 'full-content': showsFullBody }]}
+                        set:html={marked.parse(body)}
                         data-cms-field={isEditorial ? 'body_markdown' : undefined}
                         data-cms-collapsible={isEditorial ? '' : undefined}
                       />
-                    )}
-
-                    {/* Link collection display for inline posts (legacy thoughts with links) */}
-                    {(post as any).has_detail_page === false && 'links' in post && (post as any).links && (post as any).links.length > 0 && (
-                      <div class="post-links-section">
-                        <div class="post-links-header">
-                          <h3 class="post-links-title">Links from this collection</h3>
-                          <span class="post-links-count">{(post as any).links.length} link{(post as any).links.length !== 1 ? 's' : ''}</span>
-                        </div>
-
-                        <div class="post-links-grid">
-                          {(post as any).links.map((link: any) => (
-                            <LinkCard link={{ ...link, dateAdded: new Date(link.date_added) }} variant="minimal" />
-                          ))}
-                        </div>
-                      </div>
                     )}
 
                     {post.tags && post.tags.length > 0 && (
@@ -471,15 +450,15 @@ const jsonLd = {
                       </div>
                     )}
 
-                    {('reading_time' in post && (post as any).reading_time || (post as any).has_detail_page !== false) && (
+                    {('reading_time' in post && (post as any).reading_time || !showsFullBody) && (
                       <div class="post-meta">
                         {'reading_time' in post && (post as any).reading_time && (
                           <span class="post-reading-time">{(post as any).reading_time} min read</span>
                         )}
 
-                        {(post as any).has_detail_page !== false && (
+                        {!showsFullBody && (
                           <Button href={`/blog/${post.slug}`} variant="primary" size="md">
-                            {'excerpt' in post && (post as any).excerpt ? 'Read the full story →' : 'Continue reading →'}
+                            {excerpt ? 'Read the full story →' : 'Continue reading →'}
                           </Button>
                         )}
                       </div>
@@ -500,10 +479,10 @@ const jsonLd = {
             fills which element. Never visible: <template> contents don't render. */}
         {isLatest && (
           <template data-cms-draft-template="blog_post">
-            <article class="log-record" data-type="article">
+            <article class="log-record" data-type="post">
               <div class="record-body">
                 <time class="record-date" data-cms-fill="publish_date" data-cms-fill-format="date"></time>
-                <Card variant="flat" as="article" class="featured-post-card" data-post-type="article">
+                <Card variant="flat" as="article" class="featured-post-card" data-post-type="post">
                   <h2 class="post-title">
                     <span class="post-title-text" data-cms-field="title" data-cms-fill="title"></span>
                   </h2>
@@ -866,64 +845,6 @@ const jsonLd = {
     transform: var(--rotation-sm);
   }
 
-  /* Thought Posts - subtle visual distinction */
-  .featured-post-card[data-post-type="thought"] {
-    border-left: 3px solid var(--accent-primary);
-    padding-left: calc(var(--space-2xl) - 3px); /* Maintain alignment */
-  }
-
-  /* Minimal Collection Card */
-  .collection-card-minimal {
-    padding: var(--space-lg) var(--space-xl);
-  }
-
-  .collection-card-link {
-    display: flex;
-    align-items: center;
-    gap: var(--space-lg);
-    text-decoration: none;
-    color: inherit;
-    transition: all var(--duration-base) var(--ease-out);
-  }
-
-  .collection-card-link:hover {
-    color: var(--accent-primary);
-  }
-
-  .collection-card-minimal .collection-title {
-    font-family: var(--font-family-system);
-    font-size: var(--text-lg);
-    font-weight: var(--font-bold);
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    white-space: nowrap;
-  }
-
-  .collection-card-minimal .collection-description {
-    font-family: var(--font-family);
-    font-size: var(--text-base);
-    color: var(--text-secondary);
-    margin: 0;
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  @media (max-width: 768px) {
-    .collection-card-link {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: var(--space-sm);
-    }
-
-    .collection-card-minimal .collection-description {
-      white-space: normal;
-    }
-  }
-
   /* Archive Posts Styles */
   .archive-posts {
     display: grid;
@@ -1063,7 +984,7 @@ const jsonLd = {
     pointer-events: none;
   }
 
-  /* Full content for posts without detail pages */
+  /* Full content for short posts */
   .post-content-preview.full-content {
     max-height: none;
     overflow: visible;
@@ -1182,50 +1103,6 @@ const jsonLd = {
     border: var(--border-width) solid var(--accent-primary);
     border-radius: var(--border-radius);
     box-shadow: var(--shadow-lg) var(--accent-secondary);
-  }
-
-  /* Link collection styles for blog index */
-  .post-links-section {
-    margin: var(--space-2xl) 0;
-    padding-top: var(--space-xl);
-    border-top: var(--border-width) solid var(--gradient-primary-subtle);
-  }
-
-  .post-links-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--space-xl);
-    gap: var(--space-lg);
-    flex-wrap: wrap;
-  }
-
-  .post-links-title {
-    font-family: var(--font-family);
-    font-size: var(--text-xl);
-    font-weight: var(--font-bold);
-    color: var(--accent-primary);
-    margin: 0;
-  }
-
-  .post-links-count {
-    background: var(--accent-tertiary);
-    color: var(--bg-dark);
-    padding: var(--space-xs) var(--space-md);
-    font-family: var(--font-family);
-    font-size: var(--text-xs);
-    font-weight: var(--font-bold);
-    text-transform: uppercase;
-    letter-spacing: var(--tracking-wide);
-    border: var(--border-width) solid var(--bg-dark);
-    border-radius: var(--border-radius);
-    box-shadow: var(--shadow-sm) var(--accent-primary);
-  }
-
-  .post-links-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: var(--space-md);
   }
 
   .post-tags {
@@ -1350,11 +1227,6 @@ const jsonLd = {
 
     /* Archive posts switch to single column on mobile */
     .archive-posts {
-      grid-template-columns: 1fr;
-    }
-
-    /* Link collection grid to single column on mobile */
-    .post-links-grid {
       grid-template-columns: 1fr;
     }
 
@@ -1729,8 +1601,7 @@ const jsonLd = {
   .log-record:first-child { border-top: none; padding-top: var(--space-sm); }
 
   /* ---- Record body: neutralize old brutalist card chrome ---- */
-  .log-record .featured-post-card,
-  .log-record .collection-card-minimal {
+  .log-record .featured-post-card {
     padding: 0;
     margin: 0;
     transform: none;
@@ -1738,10 +1609,6 @@ const jsonLd = {
     border: none;
     background: none;
     gap: var(--space-sm);
-  }
-  .log-record .featured-post-card[data-post-type="thought"] {
-    border-left: none;
-    padding-left: 0;
   }
 
   /* Drop the type-specific inline dates/headers — the eyebrow below covers it */
@@ -1760,8 +1627,7 @@ const jsonLd = {
   }
 
   /* Titles in the display face */
-  .log-record .post-title,
-  .log-record .collection-title {
+  .log-record .post-title {
     font-family: var(--font-display);
     font-optical-sizing: auto;
     font-weight: var(--font-semibold);
@@ -1777,7 +1643,6 @@ const jsonLd = {
   .log-record .post-description,
   .log-record .post-excerpt-preview,
   .log-record .post-content-preview,
-  .log-record .collection-description,
   .log-record .definition-preview p {
     font-family: var(--font-body);
     font-size: var(--text-base);

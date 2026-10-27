@@ -5,7 +5,7 @@ import { fetchBlogPosts } from '@lib/astraeus';
 import '../../styles/log.css';
 
 const outings = (await fetchBlogPosts())
-  .filter((p: any) => p.post_type === 'nature_outing')
+  .filter((p: any) => p.kind === 'nature_outing')
   .sort((a, b) => new Date(b.publish_date).valueOf() - new Date(a.publish_date).valueOf());
 
 const pageTitle = 'Joel Lithgow > Nature';

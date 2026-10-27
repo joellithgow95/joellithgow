@@ -28,7 +28,7 @@ function albumMosaic(songs: any[]): AlbumCell[] {
 }
 
 const dumps = (await fetchBlogPosts())
-  .filter((p: any) => p.post_type === 'spotify_dump')
+  .filter((p: any) => p.kind === 'spotify_dump')
   .sort((a, b) => new Date(b.publish_date).valueOf() - new Date(a.publish_date).valueOf());
 
 // Featured Spotify links (share ?si= params stripped).

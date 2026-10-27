@@ -43,7 +43,6 @@ export interface BlogPost {
   description: string;
   /** ISO 8601 — wrap with new Date() */
   publish_date: string;
-  post_type: 'article' | 'thought' | 'collection';
   body_markdown?: string;
   excerpt?: string;
   author?: string;
@@ -51,7 +50,6 @@ export interface BlogPost {
   links?: LinkItem[] | null;
   tags?: string[] | null;
   featured?: boolean;
-  has_detail_page?: boolean;
   reading_time?: number | null;
 }
 

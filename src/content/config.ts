@@ -121,7 +121,6 @@ const blogPostSchema = z.object({
   description: z.string(),
   /** ISO 8601 — wrap with new Date() at use site */
   publish_date: z.string(),
-  post_type: z.enum(['article', 'thought', 'collection']),
   body_markdown: z.string().optional(),
   excerpt: z.string().optional(),
   author: z.string().optional(),
@@ -129,7 +128,6 @@ const blogPostSchema = z.object({
   links: z.array(linkItemSchema).optional(),
   tags: z.array(z.string()).optional(),
   featured: z.boolean().optional(),
-  has_detail_page: z.boolean().optional(),
   /** null = reading time explicitly unset; absent = not calculated */
   reading_time: z.number().nullable().optional(),
   // CMS metadata

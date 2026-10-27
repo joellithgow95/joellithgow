@@ -89,14 +89,13 @@ const pageDescription = `All blog posts tagged with ${tag}.`;
           </h2>
           <div class="log-feed">
             {posts.map((post) => {
-              const isDefinition = post.post_type === 'definition';
-              const hasDetail = (post as any).has_detail_page !== false;
+              const isDefinition = post.kind === 'definition';
               const href = isDefinition ? `/blog/dictionary/${post.slug}` : `/blog/${post.slug}`;
               const title = isDefinition ? ((post as any).term || (post as any).title) : (post as any).title;
               const count =
-                post.post_type === 'collection' ? `${('links' in post && (post as any).links?.length) || 0} links`
-                : post.post_type === 'spotify_dump' ? `${(post as any).song_count || 0} tracks`
-                : post.post_type === 'nature_outing' ? `${(post as any).observation_count || 0} obs`
+                post.kind === 'post' && (post as any).links?.length ? `${(post as any).links.length} links`
+                : post.kind === 'spotify_dump' ? `${(post as any).song_count || 0} tracks`
+                : post.kind === 'nature_outing' ? `${(post as any).observation_count || 0} obs`
                 : null;
               return (
                 <article class="log-item">
@@ -105,7 +104,7 @@ const pageDescription = `All blog posts tagged with ${tag}.`;
                   </time>
 
                   <h3 class="log-title">
-                    {hasDetail ? <a href={href}>{title}</a> : <span>{title}</span>}
+                    <a href={href}>{title}</a>
                     {count && <span class="log-count">{count}</span>}
                   </h3>
 
