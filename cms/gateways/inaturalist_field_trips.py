@@ -1,6 +1,12 @@
 """
 iNaturalist Field Trips gateway — one CMS document per outing.
 
+Legacy (ADR 026 in astraeus): ``inaturalist_observations`` writes one data document
+per sighting instead. This gateway keeps the outing posts current until the
+migration turns them into posts that slice those sightings, and is removed then.
+Its pure helpers (``curate_observation``, ``photo_urls``, ``taxon_tags``) are shared
+with the new gateway and move there when this module goes.
+
 An outing is one observed date at one place: observations from the same day that
 sit within ``cluster_radius_m`` of each other (chained, so a trail with a sighting
 every few hundred metres is one outing). Two places in one day are two outings.
@@ -400,7 +406,9 @@ def existing_outing(doc: dict[str, Any]) -> tuple[str, ExistingOuting] | None:
 
 
 class INaturalistFieldTripsGateway(BaseGateway):
-    """Sync iNaturalist observations into the CMS, one document per outing."""
+    """Legacy: one post per outing. Still keeps the live outing posts current, so run it
+    alongside inaturalist-observations (one data document per sighting, ADR 026) until
+    the migration converts those posts and removes it."""
 
     service_name = "inaturalist_field_trips"
     block_type = "inaturalist_outing"

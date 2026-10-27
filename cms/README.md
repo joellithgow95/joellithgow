@@ -213,8 +213,10 @@ Gateways are Python workers that pull external data into the CMS as draft docume
 
 | Gateway | Document type | Source |
 |---|---|---|
-| `SpotifyLikedDumpGateway` | `spotify_liked_dump` | Spotify liked tracks, grouped by month |
-| `INaturalistFieldTripsGateway` | `inaturalist_outing` | iNaturalist observations, grouped by date |
+| `SpotifyLikesGateway` (`spotify-likes`) | `spotify_like` | One data document per liked track (ADR 026) |
+| `INaturalistObservationsGateway` (`inaturalist-observations`) | `inat_observation` | One data document per observation (ADR 026) |
+| `SpotifyLikedDumpGateway` (legacy) | `spotify_liked_dump` | Spotify liked tracks, grouped by month |
+| `INaturalistFieldTripsGateway` (legacy) | `inaturalist_outing` | iNaturalist observations, grouped into outings |
 
 ### Running a sync
 

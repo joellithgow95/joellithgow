@@ -1,6 +1,10 @@
 """
 Spotify Liked Songs gateway — one CMS document per calendar month.
 
+Legacy (ADR 026 in astraeus): ``spotify_likes`` writes one data document per song
+instead. This gateway keeps the month posts current until the migration turns them
+into posts that slice those likes, and is removed then.
+
 Liked tracks come back newest first, so a run only pages back as far as the
 earliest month it needs to refresh, groups tracks by YYYY-MM and yields one
 GatewayItem per month. Re-syncing mid-month updates that month's document with
@@ -92,8 +96,37 @@ def curate_track(item: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     }
 
 
+def spotify_client_from_env() -> spotipy.Spotify:
+    """A Spotify client authorised from the ``SPOTIPY_*`` environment variables."""
+    client_id = os.environ["SPOTIPY_CLIENT_ID"]
+    client_secret = os.environ["SPOTIPY_CLIENT_SECRET"]
+    refresh_token = os.environ.get("SPOTIPY_REFRESH_TOKEN")
+
+    if refresh_token:
+        # Use a pre-obtained refresh token — no browser / redirect needed.
+        auth_manager = SpotifyOAuth(
+            scope=_SCOPE,
+            client_id=client_id,
+            client_secret=client_secret,
+            redirect_uri="http://localhost:8888/callback",  # not called
+        )
+        token_info = auth_manager.refresh_access_token(refresh_token)
+        return spotipy.Spotify(auth=token_info["access_token"])
+    # Fall back to interactive OAuth dance (requires SPOTIPY_REDIRECT_URI).
+    return spotipy.Spotify(
+        auth_manager=SpotifyOAuth(
+            scope=_SCOPE,
+            client_id=client_id,
+            client_secret=client_secret,
+            redirect_uri=os.environ["SPOTIPY_REDIRECT_URI"],
+        )
+    )
+
+
 class SpotifyLikedDumpGateway(BaseGateway):
-    """Sync Spotify liked songs into the CMS, one document per calendar month."""
+    """Legacy: one post per month. Still keeps the live month posts current, so run it
+    alongside spotify-likes (one data document per song, ADR 026) until the migration
+    converts those posts and removes it."""
 
     service_name = "spotify_liked_dump"
     block_type = "spotify_liked_dump"
@@ -103,33 +136,7 @@ class SpotifyLikedDumpGateway(BaseGateway):
 
     def __init__(self, *, spotify_client: spotipy.Spotify | None = None, **kwargs) -> None:
         super().__init__(**kwargs)
-        if spotify_client is not None:  # injected (tests)
-            self._sp = spotify_client
-            return
-        client_id = os.environ["SPOTIPY_CLIENT_ID"]
-        client_secret = os.environ["SPOTIPY_CLIENT_SECRET"]
-        refresh_token = os.environ.get("SPOTIPY_REFRESH_TOKEN")
-
-        if refresh_token:
-            # Use a pre-obtained refresh token — no browser / redirect needed.
-            auth_manager = SpotifyOAuth(
-                scope=_SCOPE,
-                client_id=client_id,
-                client_secret=client_secret,
-                redirect_uri="http://localhost:8888/callback",  # not called
-            )
-            token_info = auth_manager.refresh_access_token(refresh_token)
-            self._sp = spotipy.Spotify(auth=token_info["access_token"])
-        else:
-            # Fall back to interactive OAuth dance (requires SPOTIPY_REDIRECT_URI).
-            self._sp = spotipy.Spotify(
-                auth_manager=SpotifyOAuth(
-                    scope=_SCOPE,
-                    client_id=client_id,
-                    client_secret=client_secret,
-                    redirect_uri=os.environ["SPOTIPY_REDIRECT_URI"],
-                )
-            )
+        self._sp = spotify_client if spotify_client is not None else spotify_client_from_env()
 
     async def fetch(self) -> AsyncIterator[GatewayItem]:  # type: ignore[override]
         """Yield one GatewayItem per YYYY-MM bucket of liked tracks in range."""

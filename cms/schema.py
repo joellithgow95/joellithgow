@@ -129,6 +129,40 @@ def register_documents(cms: CMS) -> None:
         bounding_box: dict | None = JSONField()                         # {lat_min, lat_max, lon_min, lon_max}
         tags: list | None = TagsField()
 
+    # ── Data (ADR 026 in astraeus) ────────────────────────────────────────────
+    # One document per collected item, written by a gateway and published so the
+    # static build can read it, but with no page or feed card of its own: a post
+    # shows them through a slice. Every field belongs to the gateway, which
+    # overwrites the record on a re-sync. `title` is a label made from the record,
+    # for the editor's list and the reference pickers.
+
+    @cms.document("spotify_like", group="Data")
+    class SpotifyLikeDocument:
+        title: str = TextField(max_length=1000)                         # "Track — Artist"
+        track_id: str = TextField(required=True, max_length=100)        # Spotify track id
+        track_name: str = TextField(required=True, max_length=500)
+        artist_name: str = TextField(max_length=500)
+        album_name: str = TextField(max_length=500)
+        album_art_url: str = TextField(max_length=1000)
+        spotify_url: str = TextField(max_length=1000)
+        liked_at: str = TextField(required=True)                        # ISO 8601 datetime, UTC
+
+    @cms.document("inat_observation", group="Data")
+    class INatObservationDocument:
+        title: str = TextField(max_length=1000)                         # "Species — Place"
+        observation_id: float = NumberField(required=True, precision=0)
+        uri: str = TextField(max_length=1000)
+        observed_on: str = TextField(required=True)                     # YYYY-MM-DD
+        time_observed_at: str = TextField()                             # ISO 8601, with offset
+        taxon_name: str = TextField(max_length=500)                     # scientific name
+        common_name: str = TextField(max_length=500)
+        iconic_taxon: str = TextField(max_length=100)                   # e.g. "Aves"
+        place_guess: str = TextField(max_length=500)
+        lat: float | None = NumberField(min_value=-90.0, max_value=90.0)    # None when obscured
+        lon: float | None = NumberField(min_value=-180.0, max_value=180.0)
+        photo_urls: list | None = JSONField()                           # [str]
+        tags: list | None = TagsField()                                 # taxon group, e.g. ["birds"]
+
     @cms.document("definition")
     class DefinitionDocument:
         term: str = TextField(required=True, max_length=500)
