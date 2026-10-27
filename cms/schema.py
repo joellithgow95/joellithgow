@@ -7,9 +7,11 @@ from starlette_cms import (
     CMS,
     BoolField,
     JSONField,
+    LinksField,
     NumberField,
     RichTextField,
     SelectField,
+    TagsField,
     TextField,
 )
 
@@ -52,14 +54,16 @@ def register_documents(cms: CMS) -> None:
                 "or with the media MCP's list_assets."
             ),
         )
-        links: list | None = JSONField(                       # for collection type: list[LinkItem]
+        # title and date_added are required by the site's Zod schema (src/content/config.ts)
+        links: list | None = LinksField(
+            required_keys=["title", "date_added"],
             help_text=(
                 "Only for `collection` posts (and short posts with no detail page): a list of "
                 "{url, title, description, date_added}. Items also appear on /blog/links and the tag "
                 "pages. A thought about one link puts that link inline in the body instead."
             ),
         )
-        tags: list | None = JSONField()                       # list[str]
+        tags: list | None = TagsField()
         featured: bool = BoolField(default=False)
         has_detail_page: bool = BoolField(default=True)
         reading_time: float | None = NumberField(min_value=0.0, precision=0)
@@ -83,7 +87,7 @@ def register_documents(cms: CMS) -> None:
         live_links: dict | None = JSONField()
         publish_date: str = TextField()
         featured: bool = BoolField(default=False)
-        tags: list | None = JSONField()
+        tags: list | None = TagsField()
         body_blocks: list | None = JSONField()
 
     @cms.document("experience_entry")
@@ -111,7 +115,7 @@ def register_documents(cms: CMS) -> None:
         publish_date: str = TextField(required=True)                    # ISO 8601: first day of the liked month
         song_count: float = NumberField(precision=0)
         songs: list | None = JSONField()                                # [{track_name, artist_name, album_name, spotify_url, liked_at}]
-        tags: list | None = JSONField()
+        tags: list | None = TagsField()
 
     @cms.document("inaturalist_outing")
     class INaturalistOutingDocument:
@@ -125,7 +129,7 @@ def register_documents(cms: CMS) -> None:
         observations: list | None = JSONField()                         # slim records, see gateways/inaturalist_field_trips.curate_observation
         photo_urls: list | None = JSONField()
         bounding_box: dict | None = JSONField()                         # {lat_min, lat_max, lon_min, lon_max}
-        tags: list | None = JSONField()
+        tags: list | None = TagsField()
 
     @cms.document("definition")
     class DefinitionDocument:
@@ -134,4 +138,4 @@ def register_documents(cms: CMS) -> None:
         definition: str = TextField(required=True)                      # markdown — the actual definition
         personal_notes: str = TextField()                               # markdown — Joel's thoughts/context
         sources: list | None = JSONField()                              # list[Source] — mix of links + text citations
-        tags: list | None = JSONField()
+        tags: list | None = TagsField()
