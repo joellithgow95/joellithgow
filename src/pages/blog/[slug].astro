@@ -11,16 +11,13 @@ import PerformanceOptimizer from '@components/ui/PerformanceOptimizer.astro';
 import Card from '@components/primitives/Card.astro';
 import Badge from '@components/primitives/Badge.astro';
 import Button from '@components/primitives/Button.astro';
-import LinkCard from '@components/blog/LinkCard.astro';
 import LinksAccordion from '@components/blog/LinksAccordion.astro';
 import '../../styles/log.css';
 
 export async function getStaticPaths() {
   const allPosts = await fetchBlogPosts();
-  // All post types get detail pages (new types always have detail pages)
-  const postsWithDetailPage = allPosts.filter(p => ('has_detail_page' in p ? (p as any).has_detail_page !== false : true));
-
-  return postsWithDetailPage.map(post => ({
+  // Every post gets a detail page
+  return allPosts.map(post => ({
     params: { slug: post.slug },
     props: { post },
   }));
@@ -31,7 +28,7 @@ interface Props {
 }
 
 const { post } = Astro.props;
-const post_type = post.post_type;
+const kind = post.kind;
 const { title, publish_date } = post;
 const description = ('description' in post && (post as any).description) || '';
 const tags = post.tags || [];
@@ -40,19 +37,11 @@ const author = ('author' in post && (post as any).author) as string | undefined;
 const reading_time = ('reading_time' in post && (post as any).reading_time) as number | undefined;
 const image = ('image' in post && (post as any).image) as AstraeusDocument<BlogPost>['image'] | undefined;
 const links = ('links' in post && (post as any).links) as AstraeusDocument<BlogPost>['links'] | undefined;
-const hasContent = 'body_markdown' in post && (post as any).body_markdown && (post as any).body_markdown.trim().length > 0;
 const publishDate = new Date(publish_date);
 
 // Typed views for new post types (cast once in frontmatter, not in template)
-const spotifyDump = post_type === 'spotify_dump' ? (post as AstraeusDocument<SpotifyDump> & { post_type: 'spotify_dump' }) : null;
-const natureOuting = post_type === 'nature_outing' ? (post as AstraeusDocument<NatureOuting> & { post_type: 'nature_outing' }) : null;
-
-// Sibling collections for the collection-page sidebar
-const collections = post_type === 'collection'
-  ? (await fetchBlogPosts())
-      .filter((p) => p.post_type === 'collection')
-      .sort((a, b) => new Date(b.publish_date).valueOf() - new Date(a.publish_date).valueOf())
-  : [];
+const spotifyDump = kind === 'spotify_dump' ? (post as AstraeusDocument<SpotifyDump> & { kind: 'spotify_dump' }) : null;
+const natureOuting = kind === 'nature_outing' ? (post as AstraeusDocument<NatureOuting> & { kind: 'nature_outing' }) : null;
 
 // JSON-LD structured data for BlogPosting
 const jsonLd = {
@@ -126,19 +115,15 @@ const breadcrumbSchema = {
   <script type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
 
   <main
-    class:list={post_type === 'collection' ? 'blog-container' : 'article-container'}
+    class="article-container"
     data-cms-id={post._id}
     data-cms-type="blog_post"
   >
-    <div class:list={post_type === 'collection' ? 'blog-wrapper' : 'article-wrapper'}>
-      {/* Main content column (for collections) or article (for regular posts) */}
-      <div class={post_type === 'collection' ? 'main-content' : ''}>
-        {/* Back to blog link (regular posts only — collections use the header breadcrumb) */}
-        {post_type !== 'collection' && (
-          <nav class="article-nav">
-            <Button href="/blog" variant="secondary" size="md" class="nav-back-btn">← Back to blog</Button>
-          </nav>
-        )}
+    <div class="article-wrapper">
+      <div>
+        <nav class="article-nav">
+          <Button href="/blog" variant="secondary" size="md" class="nav-back-btn">← Back to blog</Button>
+        </nav>
 
         {/* SPOTIFY DUMP LAYOUT — inside the same .blog-article card as regular posts */}
         {spotifyDump && (
@@ -253,32 +238,9 @@ const breadcrumbSchema = {
           </article>
         )}
 
-        {/* COLLECTION / REGULAR ARTICLE LAYOUT */}
+        {/* REGULAR ARTICLE LAYOUT */}
         {/* spotifyDump and natureOuting render their own layouts above — skip entirely for those */}
-        {!spotifyDump && !natureOuting && (post_type === 'collection' ? (
-          <>
-            {/* Collection header */}
-            <header class="section-head">
-              <h1 class="section-title" data-cms-field="title">{title}</h1>
-              <p class="section-desc" data-cms-field="description">{description}</p>
-            </header>
-
-            {/* Collection content section - simple card (only if has content) */}
-            {hasContent && (
-              <section class="collection-content-section">
-                <Card variant="flat" as="article" class="collection-content-card">
-                  <div class="collection-intro" data-cms-field="body_markdown" data-cms-field-type="markdown" set:html={marked.parse(post.body_markdown ?? '')}></div>
-                </Card>
-              </section>
-            )}
-
-            {/* Collection links — same accordion as the links page */}
-            {links && links.length > 0 && (
-              <LinksAccordion links={links.map((l) => ({ url: l.url, title: l.title, description: l.description }))} />
-            )}
-          </>
-        ) : (
-          /* REGULAR ARTICLE LAYOUT */
+        {!spotifyDump && !natureOuting && (
           <article class="blog-article">
             {/* Hero-style header with featured image/video */}
             {image && (
@@ -339,61 +301,34 @@ const breadcrumbSchema = {
             {/* Article content */}
             <div class="article-content" data-cms-field="body_markdown" data-cms-field-type="markdown" set:html={marked.parse(('body_markdown' in post ? (post as any).body_markdown : null) ?? '')}></div>
 
-            {/* Link collection display (for non-collections with links) */}
+            {/* The post's links, same accordion as the links page */}
             {links && links.length > 0 && (
               <section class="links-section">
                 <div class="links-header">
-                  <h2 class="links-title">Links from this collection</h2>
+                  <h2 class="links-title">Links</h2>
                   <div class="links-meta">
                     <span class="links-count">{links.length} link{links.length !== 1 ? 's' : ''}</span>
                   </div>
                 </div>
 
-                <div class="links-grid">
-                  {links.map((link) => (
-                    <LinkCard link={{ ...link, dateAdded: new Date(link.date_added) }} variant="minimal" />
-                  ))}
-                </div>
+                <LinksAccordion links={links.map((l) => ({ url: l.url, title: l.title, description: l.description }))} />
               </section>
             )}
           </article>
-        ))}
+        )}
       </div>
 
-      {/* Sidebar for collections — browse other collections */}
-      {post_type === 'collection' && (
-        <aside class="sidebar">
-          <h2 class="sidebar-heading">Collections</h2>
-          <nav class="type-nav" aria-label="Collections">
-            {collections.map((c, i) => (
-              <a
-                href={`/blog/${c.slug}`}
-                aria-current={c.slug === post.slug ? 'page' : undefined}
-                class:list={['type-card', `type-card--${['primary', 'secondary', 'tertiary'][i % 3]}`]}
-              >
-                <span class="tc-label">{c.title}</span>
-                <span class="tc-count">{('links' in c && (c as any).links?.length) || 0}</span>
-                <span class="tc-arrow" aria-hidden="true">→</span>
-              </a>
-            ))}
+        <footer class="article-footer">
+          <nav class="footer-nav">
+            <Button href="/blog" variant="tertiary" size="md" class="footer-nav-btn footer-nav-back">
+              ← Back to all posts
+            </Button>
+
+            <Button href="/" variant="tertiary" size="md" class="footer-nav-btn footer-nav-home">
+              Home →
+            </Button>
           </nav>
-        </aside>
-      )}
-
-        {/* Footer navigation (only for non-collections) */}
-        {post_type !== 'collection' && (
-          <footer class="article-footer">
-            <nav class="footer-nav">
-              <Button href="/blog" variant="tertiary" size="md" class="footer-nav-btn footer-nav-back">
-                ← Back to all posts
-              </Button>
-
-              <Button href="/" variant="tertiary" size="md" class="footer-nav-btn footer-nav-home">
-                Home →
-              </Button>
-            </nav>
-          </footer>
-        )}
+        </footer>
       </div>
     </div>
   </main>

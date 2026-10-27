@@ -35,7 +35,6 @@ def register_documents(cms: CMS) -> None:
             ),
         )
         publish_date: str = TextField(required=True)          # ISO 8601 — wrap with new Date()
-        post_type: str = SelectField(choices=["article", "thought", "collection"], required=True)
         # ProseMirror JSON, not Markdown, despite the field name — stored rich
         # so the live editor gets WYSIWYG + collaborative editing. The Astro
         # loader renders it back to Markdown at build (see prosemirror-markdown).
@@ -58,14 +57,13 @@ def register_documents(cms: CMS) -> None:
         links: list | None = LinksField(
             required_keys=["title", "date_added"],
             help_text=(
-                "Only for `collection` posts (and short posts with no detail page): a list of "
-                "{url, title, description, date_added}. Items also appear on /blog/links and the tag "
-                "pages. A thought about one link puts that link inline in the body instead."
+                "For a post that is a list of links: {url, title, description, date_added} each, "
+                "shown under the body. Items also appear on /blog/links and the tag pages. A post "
+                "about one link puts that link inline in the body instead."
             ),
         )
         tags: list | None = TagsField()
         featured: bool = BoolField(default=False)
-        has_detail_page: bool = BoolField(default=True)
         reading_time: float | None = NumberField(min_value=0.0, precision=0)
 
     @cms.document("project_page")

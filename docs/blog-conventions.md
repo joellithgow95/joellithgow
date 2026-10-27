@@ -6,22 +6,22 @@ How content on joellithgow.com is shaped. For field names and types, `cms/schema
 
 | You're writing... | Use | Notes |
 |---|---|---|
-| An opinion, devlog, explainer or write-up | `blog_post` | Pick a `post_type` below |
+| An opinion, devlog, explainer, short thought or list of links | `blog_post` | One kind of post; see below |
 | A term with a definition, plus your take on it | `definition` | Not a blog post. Lives under `/blog/dictionary/` |
 | A case study | `project_page` | |
 | A job on the resume | `experience_entry` | |
 
 Spotify dumps and iNaturalist outings are created and auto-published by the gateways. Don't write those by hand.
 
-## `post_type` for `blog_post`
+## `blog_post`
 
-The values come from the schema: `article`, `thought`, `collection`. What the existing posts do with them:
+There is one kind of post. What it looks like follows from what it holds:
 
-- **`article`**: longer, structured pieces. About 12 of the current posts.
-- **`thought`**: shorter, reflective or in-the-moment posts, such as "Claude Code Interactive Prompts". About 7.
-- **`collection`**: lists of links, which use the `links` field (a list of link items). About 4.
+- Every post has its own page at `/blog/<slug>`.
+- On the feed, a post with an `excerpt` shows the excerpt. Without one, a short body (up to about 800 characters of Markdown) shows in full, and a longer one is cut off with "Continue reading". So a short thought needs no excerpt, and a long piece should have one.
+- A list of links goes in the `links` field (a list of link items). They render under the body on the post's page, and the feed card shows a "N links" badge. Items also show on `/blog/links` and the tag pages.
 
-New posts default to `has_detail_page: true`. Six of the current posts set it to `false`, mostly short thoughts, so check one of those if you want a post without its own page.
+Older posts still carry `post_type` and `has_detail_page` from before this change. The CMS drops both the next time the post is saved; don't set them.
 
 ## `definition` structure
 
@@ -35,7 +35,7 @@ Joel writes his posts. He wants very little to no AI-written prose in them, and 
 
 - **Body: his words.** When Joel gives you the text (a "short thought on a link" is the common case), the body is that text. Fix obvious typos and punctuation only. Don't rephrase, expand, add a summary of the source, add a conclusion, or leave `[JOEL: ...]` placeholders. If a word looks like a typo but might be a joke or pun, keep it and ask, or flag it in your reply.
 - **Tagline: the one place an agent writes.** The `description` field is shown in the editor as **Tagline**. It is the short line under the title (and the page meta description and RSS summary). If Joel doesn't give one, write one: short, with a take, in the register of "Is this the formalization of commercial world-view classifier models?" rather than a literal restatement of the post. He may tune this over time.
-- **A thought about one link:** `post_type: thought`, the link goes inline in the body (his text, then "Via [source title](url)"), and `links` stays empty. `links` is for `collection` posts: items there also show on `/blog/links` and the tag pages.
+- **A thought about one link:** the link goes inline in the body (his text, then "Via [source title](url)"), and `links` stays empty. `links` is for posts that are a list of links: items there also show on `/blog/links` and the tag pages.
 - **Title, excerpt and tags** are small metadata, not prose: keep them plain and factual, reuse existing tags (see *Tags*), and say what you chose so he can change it.
 
 ### When Joel explicitly asks for a drafted piece
