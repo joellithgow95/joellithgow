@@ -1,0 +1,67 @@
+# Build the Astro site against the prod CMS and deploy it to Cloudflare Workers
+# static assets (wrangler.jsonc).
+#
+# Runs on a push to main that touches the site, and on workflow_dispatch: the CMS
+# dispatches it on every publish (cms/site_deploy.py) and from the editor's
+# "Rebuild site" button. No branch previews: only main deploys.
+#
+# Repo secrets: CLOUDFLARE_API_TOKEN (Workers Scripts: Edit on the account only),
+# CLOUDFLARE_ACCOUNT_ID, ASTRAEUS_API_KEY (the build reads content from the CMS).
+
+name: Deploy site
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'cms/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - 'docs/**'
+      - 'Dockerfile'
+      - 'docker-compose*.yml'
+      - 'Caddyfile'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '**.md'
+      - '.github/workflows/build-cms.yml'
+  workflow_dispatch:
+
+# A burst of publishes queues one deploy behind the running one rather than a
+# deploy each: GitHub keeps only the newest pending run in a group. Never cancel
+# a deploy mid-upload.
+concurrency:
+  group: deploy-site
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      ASTRAEUS_URL: https://cms.joellithgow.com
+      PUBLIC_CMS_BASE: https://cms.joellithgow.com
+      ASTRAEUS_API_KEY: ${{ secrets.ASTRAEUS_API_KEY }}
+      # Fail the build rather than publish an empty site (see astraeus-loader.ts).
+      REQUIRE_CMS_CONTENT: '1'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.x
+
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+
+      - name: Deploy to Cloudflare
+        run: bunx wrangler@4.151.1 deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

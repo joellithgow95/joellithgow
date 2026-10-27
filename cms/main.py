@@ -31,6 +31,7 @@ from astraeus_portal import Portal, PortalApp
 from cms.media import MOUNT_PATH as MEDIA_MOUNT_PATH, build_media
 from cms.oauth import OAuthSettings, build_oauth_routes
 from cms.schema import register_documents
+from cms.site_deploy import SiteDeployConfig, deploy_hook, rebuild
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./cms/data/content.db")
 API_KEY = os.environ.get("CMS_API_KEY", "dev-secret")
@@ -58,11 +59,11 @@ OAUTH_SIGNING_SECRET = os.environ.get("OAUTH_SIGNING_SECRET")
 _cors_raw = os.environ.get("CMS_CORS_ORIGINS", "")
 CORS_ORIGINS: list[str] = [o.strip() for o in _cors_raw.split(",") if o.strip()]
 
-# Netlify build hook for the manual "Rebuild site" button. Set only where a
-# rebuild should actually fire (prod) — leaving it unset in staging/local hides
-# the button and makes /api/rebuild a no-op, so those environments can't trigger
-# a production deploy.
-NETLIFY_BUILD_HOOK_URL = os.environ.get("NETLIFY_BUILD_HOOK_URL")
+# Where a site rebuild goes (cms/site_deploy.py): Netlify's build hook and/or the
+# GitHub deploy workflow. Set only where a rebuild should actually fire (prod) —
+# leaving both unset in staging/local hides the button and makes /api/rebuild a
+# no-op, so those environments can't trigger a production deploy.
+SITE_DEPLOY = SiteDeployConfig.from_env()
 
 # ADR 024: apply collab steps on the server instead of trusting the editor's copy of
 # the document. Off unless CMS_VERIFY_COLLAB=1, so turning it on (or back off) is a
@@ -94,22 +95,22 @@ register_editorial_blocks(cms)  # system_prompt + model_config only — chat_ses
 
 
 async def trigger_rebuild(request: Request) -> JSONResponse:
-    """Fire the Netlify build hook to rebuild the static site on demand.
+    """Rebuild the static site on demand (Netlify and/or the GitHub deploy workflow).
 
     Backs the editor's manual "Rebuild site" button. Guarded by the standard
-    write auth (session cookie or API key). Returns 503 when no hook URL is
+    write auth (session cookie or API key). Returns 503 when no target is
     configured, which is how staging/local decline to trigger a prod deploy.
     """
     if (err := await require_auth(request, cms)) is not None:
         return err
 
-    if not NETLIFY_BUILD_HOOK_URL:
+    if not SITE_DEPLOY.configured:
         return JSONResponse({"error": "Rebuild not configured"}, status_code=503)
 
     async with httpx.AsyncClient(timeout=10) as client:
-        resp = await client.post(NETLIFY_BUILD_HOOK_URL)
+        results = await rebuild(SITE_DEPLOY, client)
 
-    return JSONResponse({"ok": resp.status_code < 400, "status": resp.status_code})
+    return JSONResponse({"ok": all(s < 400 for s in results.values()), "status": results})
 
 
 # Register /api/rebuild before cms.app is built (extension routes are frozen once
@@ -121,7 +122,20 @@ cms.register_extension_route(
     name="rebuild",
 )
 
-# Expose the "Rebuild site" toolbar button only where a hook URL is set (prod),
+async def site_deploy_hook(request: Request) -> JSONResponse:
+    return await deploy_hook(request, SITE_DEPLOY)
+
+
+# Target of the CMS webhook that redeploys the site on publish. Authenticated by
+# the key in its URL, not the API key: a webhook can't send headers.
+cms.register_extension_route(
+    path="/api/site-deploy",
+    endpoint=site_deploy_hook,
+    methods=["POST"],
+    name="site_deploy",
+)
+
+# Expose the "Rebuild site" toolbar button only where a target is set (prod),
 # so staging/local editors don't see a button that can't do anything.
 rebuild_actions = (
     [
@@ -132,7 +146,7 @@ rebuild_actions = (
             "confirm": "Trigger a production site rebuild?",
         }
     ]
-    if NETLIFY_BUILD_HOOK_URL
+    if SITE_DEPLOY.configured
     else []
 )
 
