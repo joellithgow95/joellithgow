@@ -1,0 +1,38 @@
+---
+/**
+ * DefinitionsSlice — dictionary entries a post picked, each linking to its
+ * page under /blog/dictionary/. Compact cuts the definition short.
+ */
+import type { Entry } from '@lib/slices';
+
+export interface Props {
+  definitions: Entry[];
+  compact?: boolean;
+}
+
+const { definitions, compact = false } = Astro.props;
+const cut = (text: string, n: number) => (compact && text.length > n ? `${text.slice(0, n)}…` : text);
+---
+
+<section class="slice slice--definitions">
+  {definitions.map((d) => (
+    <div class="slice-definition">
+      <a href={`/blog/dictionary/${d.slug}`} class="slice-term">{d.term}</a>
+      <blockquote class="slice-definition-text">{cut(d.definition, 200)}</blockquote>
+    </div>
+  ))}
+</section>
+
+<style>
+  @import '../../../styles/tokens.css';
+
+  .slice { margin: var(--space-lg) 0; display: flex; flex-direction: column; gap: var(--space-md); }
+  .slice-term { font-family: var(--font-display); font-weight: var(--font-semibold); font-size: var(--text-lg); color: var(--text-primary); }
+  .slice-term:hover { color: var(--accent-primary); }
+  .slice-definition-text {
+    margin: var(--space-xs) 0 0 0;
+    padding-left: var(--space-md);
+    border-left: 3px solid var(--accent-secondary);
+    color: var(--text-secondary);
+  }
+</style>

@@ -1,0 +1,104 @@
+---
+/**
+ * NatureSlice — observations from a post's nature slice. Compact (feed card):
+ * a few photos and the species. Full (post page): more photos and every
+ * observation, linked to iNaturalist.
+ */
+import type { Observation } from '@lib/slices';
+
+export interface Props {
+  observations: Observation[];
+  compact?: boolean;
+}
+
+const { observations, compact = false } = Astro.props;
+
+// Stored photo URLs are iNaturalist's originals; the medium size is plenty here.
+const photos = observations
+  .flatMap((o) => o.photo_urls ?? [])
+  .map((url) => url.replace('/original.', '/medium.'))
+  .slice(0, compact ? 6 : 12);
+const name = (o: Observation) => o.common_name || o.taxon_name || 'Unknown';
+const species = [...new Set(observations.map(name))];
+const SPECIES_ON_CARD = 10;
+---
+
+<section class="slice slice--nature">
+  {photos.length > 0 && (
+    <div class="slice-photos">
+      {photos.map((url) => <img src={url} alt="iNaturalist observation photo" loading="lazy" />)}
+    </div>
+  )}
+
+  {compact ? (
+    <div class="species-chips">
+      {species.slice(0, SPECIES_ON_CARD).map((s) => <span class="species-chip">{s}</span>)}
+      {species.length > SPECIES_ON_CARD && <span class="species-chip species-chip--more">+{species.length - SPECIES_ON_CARD} more</span>}
+    </div>
+  ) : (
+    <ul class="observation-list">
+      {observations.map((o) => (
+        <li class="observation-item">
+          <span class="observation-name">
+            {o.uri ? <a href={o.uri} target="_blank" rel="noopener noreferrer">{name(o)}</a> : name(o)}
+            {o.common_name && o.taxon_name && <em class="observation-taxon">{o.taxon_name}</em>}
+          </span>
+          <span class="observation-where">
+            {o.place_guess && <span>{o.place_guess} · </span>}
+            <time datetime={o.observed_on}>
+              {new Date(o.observed_on).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}
+            </time>
+          </span>
+        </li>
+      ))}
+    </ul>
+  )}
+
+  <p class="slice-count">
+    {observations.length} observation{observations.length !== 1 ? 's' : ''} · {species.length} species
+  </p>
+</section>
+
+<style>
+  @import '../../../styles/tokens.css';
+
+  .slice { margin: var(--space-lg) 0; }
+  .slice-count { font-size: var(--text-xs); color: var(--text-secondary); margin: var(--space-sm) 0 0 0; }
+  .slice-photos {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+  }
+  .slice-photos img {
+    width: 100%;
+    aspect-ratio: 4/3;
+    object-fit: cover;
+    display: block;
+    border-radius: var(--radius-sm);
+  }
+  .species-chips { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
+  .species-chip {
+    font-size: var(--text-xs);
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+    border: var(--border-width) solid #74ac00;
+    border-radius: var(--radius-full);
+    padding: var(--space-xs) var(--space-sm);
+  }
+  .species-chip--more { border-style: dashed; color: var(--text-secondary); }
+  .observation-list { list-style: none; padding: 0; margin: 0; }
+  .observation-item {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--space-xs) var(--space-md);
+    padding: var(--space-sm) 0;
+    border-bottom: 1px solid var(--gradient-primary-subtle);
+  }
+  .observation-name { font-weight: var(--font-semibold); }
+  .observation-name a { color: var(--text-primary); }
+  .observation-name a:hover { color: var(--accent-primary); }
+  .observation-taxon { font-weight: normal; color: var(--text-secondary); margin-left: var(--space-sm); font-size: var(--text-sm); }
+  .observation-where { font-size: var(--text-sm); color: var(--text-secondary); }
+</style>

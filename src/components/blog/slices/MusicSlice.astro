@@ -1,0 +1,65 @@
+---
+/**
+ * MusicSlice — songs from a post's music slice. Compact (feed card): the
+ * album mosaic. Full (post page): the mosaic and the song list.
+ */
+import AlbumMosaic from '../AlbumMosaic.astro';
+import type { Song } from '@lib/slices';
+
+export interface Props {
+  songs: Song[];
+  compact?: boolean;
+}
+
+const { songs, compact = false } = Astro.props;
+---
+
+<section class="slice slice--music">
+  <AlbumMosaic songs={songs} />
+  <p class="slice-count">{songs.length} song{songs.length !== 1 ? 's' : ''}</p>
+  {!compact && (
+    <ol class="song-list">
+      {songs.map((song) => (
+        <li class="song-item">
+          <span class="song-info">
+            {song.spotify_url ? (
+              <a href={song.spotify_url} class="song-title" target="_blank" rel="noopener noreferrer">{song.track_name}</a>
+            ) : (
+              <span class="song-title">{song.track_name}</span>
+            )}
+            {song.artist_name && <span class="song-artist">{song.artist_name}</span>}
+            {song.album_name && <span class="song-album">{song.album_name}</span>}
+          </span>
+          <time class="song-liked-at" datetime={song.liked_at}>
+            {new Date(song.liked_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
+          </time>
+        </li>
+      ))}
+    </ol>
+  )}
+</section>
+
+<style>
+  @import '../../../styles/tokens.css';
+
+  .slice { margin: var(--space-lg) 0; }
+  .slice-count {
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+    margin: var(--space-xs) 0 0 0;
+  }
+  .song-list { list-style: none; padding: 0; margin: var(--space-lg) 0 0 0; }
+  .song-item {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-md);
+    padding: var(--space-sm) 0;
+    border-bottom: 1px solid var(--gradient-primary-subtle);
+  }
+  .song-info { display: flex; flex-wrap: wrap; gap: 0 var(--space-sm); min-width: 0; }
+  .song-title { font-weight: var(--font-semibold); color: var(--text-primary); }
+  a.song-title:hover { color: var(--accent-primary); }
+  .song-artist, .song-album { color: var(--text-secondary); font-size: var(--text-sm); }
+  .song-album { font-style: italic; }
+  .song-liked-at { font-size: var(--text-xs); color: var(--text-secondary); white-space: nowrap; flex-shrink: 0; }
+</style>

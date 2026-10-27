@@ -49,9 +49,21 @@ export interface BlogPost {
   image?: BlogImage | null;
   links?: LinkItem[] | null;
   tags?: string[] | null;
+  /** Slices of the data documents this post shows (cms/slices.py) */
+  data?: Slice[] | null;
   featured?: boolean;
   reading_time?: number | null;
 }
+
+// ---------------------------------------------------------------------------
+// Slices (cms/slices.py): what a post shows from the data documents.
+// Resolved at build time by src/lib/slices.ts.
+// ---------------------------------------------------------------------------
+
+export type Slice =
+  | { block_type: 'music_range' | 'nature_range'; from_date: string; to_date: string }
+  | { block_type: 'music_picks' | 'nature_picks' | 'definition_picks' | 'link_picks'; refs: string[] }
+  | { block_type: 'links_by_tag'; tag: string };
 
 export interface HeroMedia {
   src: string;
@@ -202,5 +214,47 @@ export interface Definition {
   personal_notes?: string;
   /** Mix of link sources and text citations */
   sources?: Source[] | null;
+  tags?: string[] | null;
+}
+
+// ---------------------------------------------------------------------------
+// Data documents (ADR 026): one per item, shown only through posts' slices
+// ---------------------------------------------------------------------------
+
+export interface SpotifyLike {
+  title?: string;
+  track_id: string;
+  track_name: string;
+  artist_name?: string;
+  album_name?: string;
+  album_art_url?: string;
+  spotify_url?: string;
+  /** ISO 8601 datetime, UTC */
+  liked_at: string;
+}
+
+export interface INatObservation {
+  title?: string;
+  observation_id?: number;
+  uri?: string;
+  /** YYYY-MM-DD */
+  observed_on: string;
+  time_observed_at?: string;
+  taxon_name?: string;
+  common_name?: string;
+  iconic_taxon?: string;
+  place_guess?: string;
+  lat?: number | null;
+  lon?: number | null;
+  photo_urls?: string[];
+  tags?: string[] | null;
+}
+
+export interface LinkDoc {
+  title: string;
+  url: string;
+  description?: string;
+  /** YYYY-MM-DD */
+  date_added: string;
   tags?: string[] | null;
 }

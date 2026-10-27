@@ -1,0 +1,26 @@
+---
+/**
+ * PostSlices — a post's resolved slices (src/lib/slices.ts), in the post's
+ * order, each drawn by its source's component.
+ */
+import type { ResolvedSlice } from '@lib/slices';
+import MusicSlice from './MusicSlice.astro';
+import NatureSlice from './NatureSlice.astro';
+import DefinitionsSlice from './DefinitionsSlice.astro';
+import LinksSlice from './LinksSlice.astro';
+
+export interface Props {
+  slices: ResolvedSlice[];
+  /** The feed card's short form instead of the post page's full one */
+  compact?: boolean;
+}
+
+const { slices, compact = false } = Astro.props;
+---
+
+{slices.map((s) =>
+  s.kind === 'music' ? <MusicSlice songs={s.songs} compact={compact} />
+  : s.kind === 'nature' ? <NatureSlice observations={s.observations} compact={compact} />
+  : s.kind === 'definitions' ? <DefinitionsSlice definitions={s.definitions} compact={compact} />
+  : <LinksSlice links={s.links} compact={compact} />
+)}

@@ -12,6 +12,8 @@ import Card from '@components/primitives/Card.astro';
 import Badge from '@components/primitives/Badge.astro';
 import Button from '@components/primitives/Button.astro';
 import LinksAccordion from '@components/blog/LinksAccordion.astro';
+import PostSlices from '@components/blog/slices/PostSlices.astro';
+import { resolveSlices } from '@lib/slices';
 import '../../styles/log.css';
 
 export async function getStaticPaths() {
@@ -38,6 +40,8 @@ const reading_time = ('reading_time' in post && (post as any).reading_time) as n
 const image = ('image' in post && (post as any).image) as AstraeusDocument<BlogPost>['image'] | undefined;
 const links = ('links' in post && (post as any).links) as AstraeusDocument<BlogPost>['links'] | undefined;
 const publishDate = new Date(publish_date);
+// The data this post shows (ADR 026 slices), resolved at build time
+const slices = kind === 'post' ? await resolveSlices((post as any).data) : [];
 
 // Typed views for new post types (cast once in frontmatter, not in template)
 const spotifyDump = kind === 'spotify_dump' ? (post as AstraeusDocument<SpotifyDump> & { kind: 'spotify_dump' }) : null;
@@ -301,6 +305,12 @@ const breadcrumbSchema = {
             {/* Article content */}
             <div class="article-content" data-cms-field="body_markdown" data-cms-field-type="markdown" set:html={marked.parse(('body_markdown' in post ? (post as any).body_markdown : null) ?? '')}></div>
 
+            {slices.length > 0 && (
+              <div class="article-slices">
+                <PostSlices slices={slices} />
+              </div>
+            )}
+
             {/* The post's links, same accordion as the links page */}
             {links && links.length > 0 && (
               <section class="links-section">
@@ -548,6 +558,13 @@ const breadcrumbSchema = {
     z-index: 2;
     line-height: var(--leading-relaxed);
     font-size: var(--text-lg);
+    padding: 0 var(--space-3xl) var(--space-2xl);
+  }
+
+  /* Slices sit under the body, at the body's width */
+  .article-slices {
+    position: relative;
+    z-index: 2;
     padding: 0 var(--space-3xl) var(--space-2xl);
   }
 
@@ -1006,7 +1023,8 @@ const breadcrumbSchema = {
       padding: 0 var(--space-lg) var(--space-xl);
     }
 
-    .article-content {
+    .article-content,
+    .article-slices {
       padding: 0 var(--space-lg) var(--space-2xl);
     }
 
@@ -1106,7 +1124,8 @@ const breadcrumbSchema = {
       padding: 0 var(--space-md) var(--space-lg);
     }
 
-    .article-content {
+    .article-content,
+    .article-slices {
       padding: 0 var(--space-md) var(--space-2xl);
     }
 

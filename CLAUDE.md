@@ -145,8 +145,9 @@ model moves to data documents (astraeus ADR 026):
 
 - **Data gateways (new): `spotify-likes` and `inaturalist-observations`.** One small document per song
   (`spotify_like`, ref `spotify:like:<track id>`) and per sighting (`inat_observation`, ref
-  `inaturalist:observation:<id>`), filed under **Data** in the editor. Published, but the site does not read them
-  yet, so they have no page or feed card and cannot break the build; the slices work renders them through posts.
+  `inaturalist:observation:<id>`), filed under **Data** in the editor. Published, with no page or feed card of their
+  own: a post shows them through a slice in its `data` field (see *Content collections*), and `/blog/music` and
+  `/blog/nature` browse them by month and by day.
   Every field is the gateway's, so a re-sync overwrites the record (the `title` is a label built from the data,
   not for hand edits). No clustering: which sightings make an outing is a post's choice. Ranges as below, except
   Spotify's `custom` is liked *dates* and the floor is 2025-01-01. A song you un-like or a deleted observation keeps
@@ -254,7 +255,7 @@ src/content/config.ts           # collection definitions + Zod schemas
 | `experience` | `experience_entry` | Work history |
 | `spotifyDumps` | `spotify_liked_dump` | Gateway-sourced (legacy month posts) |
 | `inaturalistOutings` | `inaturalist_outing` | Gateway-sourced (legacy outing posts) |
-| — | `spotify_like`, `inat_observation` | Data docs, one per song / sighting. Not loaded by the site yet (ADR 026 slices) |
+| `spotify_likes`, `inat_observations`, `links` | `spotify_like`, `inat_observation`, `link` | Data docs (ADR 026), keyed by document id. Shown only through posts' slices and the music/nature pages |
 | `definitions` | `definition` | Glossary terms; routes under `/blog/dictionary/`. CMS-only, not seeded from local files |
 | `applications` | Local MDX | Not in CMS — intentional |
 
@@ -264,6 +265,11 @@ src/content/config.ts           # collection definitions + Zod schemas
 
 - CMS fields are `snake_case` (`publish_date`, `reading_time`). The legacy markdown files in `src/content/blog/` are seed sources with `camelCase` frontmatter (`publishDate`, `readingTime`); their `type` and `hasDetailPage` are no longer read. The site reads from the CMS, not from those files.
 - A definition is **not** a blog post: it has `term`, `definition`, `personal_notes`, `sources`, `tags` and no `kind` of its own. The site tags each feed item with a synthetic `kind` (`post`, `spotify_dump`, `nature_outing`, `definition`) when it merges them into blog feeds (`src/lib/astraeus.ts`). `blog_post` has no type field: every post has a detail page, and the feed card shows the excerpt, or the whole body when it is short (see `docs/blog-conventions.md`).
+- **Slices.** `blog_post.data` is a list of slice blocks (`cms/slices.py`): `music_range`, `nature_range`,
+  `music_picks`, `nature_picks`, `definition_picks`, `link_picks`, `links_by_tag`. Each is an instruction, not a copy:
+  `src/lib/slices.ts` resolves it against the published data docs at build time and skips a picked id that is not
+  published, so a slice cannot break the build. The CMS validates slices on save (dates, order, tag shape, and that
+  every picked ref exists and has the right type). Components: `src/components/blog/slices/`.
 - Publishing, unpublishing and deleting fire the Netlify build hook through a CMS webhook. See *Rebuilding the site*.
 
 ## Gotchas

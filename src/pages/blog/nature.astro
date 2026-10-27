@@ -2,14 +2,52 @@
 import BaseLayout from '@components/common/BaseLayout.astro';
 import ThemeModal from '@components/modals/ThemeModal.astro';
 import { fetchBlogPosts } from '@lib/astraeus';
+import { loadDataPool, postsByItem, postsShowing, type Observation, type PostRef } from '@lib/slices';
 import '../../styles/log.css';
 
-const outings = (await fetchBlogPosts())
-  .filter((p: any) => p.kind === 'nature_outing')
-  .sort((a, b) => new Date(b.publish_date).valueOf() - new Date(a.publish_date).valueOf());
+// Every observation, by the day it was made, newest first; each day links to
+// the posts that show its observations. Until the data gateway has run (no
+// inat_observation documents yet), the legacy outing posts stand in, and until
+// the migration converts them they are linked from their day.
+type Day = { date: string; place?: string; species: string[]; photos: string[]; count: number; posts: PostRef[] };
+
+const allPosts = await fetchBlogPosts();
+const { observations } = await loadDataPool();
+const byItem = await postsByItem(allPosts.filter((p) => p.kind === 'post') as any);
+const legacyOutings = allPosts.filter((p: any) => p.kind === 'nature_outing') as any[];
+const legacyPosts = (date: string) =>
+  legacyOutings.filter((o) => o.outing_date === date).map((o) => ({ slug: o.slug, title: o.title }));
+
+let days: Day[];
+if (observations.length > 0) {
+  const grouped = new Map<string, Observation[]>();
+  for (const obs of observations) grouped.set(obs.observed_on, [...(grouped.get(obs.observed_on) ?? []), obs]);
+  days = [...grouped.entries()].map(([date, dayObs]) => ({
+    date,
+    place: dayObs.find((o) => o.place_guess)?.place_guess ?? undefined,
+    species: [...new Set(dayObs.map((o) => o.common_name || o.taxon_name || 'Unknown'))],
+    photos: dayObs.flatMap((o) => o.photo_urls ?? []),
+    count: dayObs.length,
+    posts: [...postsShowing(dayObs.map((o) => o._id), byItem), ...legacyPosts(date)],
+  }));
+} else {
+  days = legacyOutings.map((o) => ({
+    date: o.outing_date,
+    place: o.place_guess,
+    species: o.species_list ?? [],
+    photos: o.photo_urls ?? [],
+    count: o.observation_count ?? 0,
+    posts: [{ slug: o.slug, title: o.title }],
+  }));
+}
+days.sort((a, b) => b.date.localeCompare(a.date));
+const dayLabel = (date: string) =>
+  new Date(`${date}T00:00:00Z`).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+// Stored photo URLs are iNaturalist's originals; a small size is plenty here.
+const thumb = (url: string) => url.replace('/original.', '/small.');
 
 const pageTitle = 'Joel Lithgow > Nature';
-const pageDescription = 'Field notes from iNaturalist — observations, species, and outings.';
+const pageDescription = 'Field notes from iNaturalist: every observation, day by day.';
 ---
 
 <BaseLayout title={pageTitle} description={pageDescription}>
@@ -21,21 +59,31 @@ const pageDescription = 'Field notes from iNaturalist — observations, species,
           <p class="section-desc">{pageDescription}</p>
         </header>
 
-        {outings.length > 0 ? (
+        {days.length > 0 ? (
           <div class="nature-list">
-            {outings.map((outing: any) => (
+            {days.map((day) => (
               <article class="nature-outing">
                 <h2 class="nature-outing-title">
-                  <a href={`/blog/${outing.slug}`}>{outing.title}</a>
+                  {day.posts.length === 1 ? <a href={`/blog/${day.posts[0].slug}`}>{dayLabel(day.date)}</a> : dayLabel(day.date)}
                 </h2>
-                {outing.species_list && outing.species_list.length > 0 && (
-                  <p class="nature-species">{outing.species_list.slice(0, 12).join(' · ')}</p>
+                {day.place && <p class="nature-place">{day.place}</p>}
+                {day.photos.length > 0 && (
+                  <div class="nature-thumbs">
+                    {day.photos.slice(0, 4).map((url) => <img src={thumb(url)} alt="iNaturalist observation photo" loading="lazy" />)}
+                  </div>
                 )}
+                {day.species.length > 0 && <p class="nature-species">{day.species.slice(0, 12).join(' · ')}</p>}
+                <p class="nature-meta">
+                  {day.count} observation{day.count !== 1 ? 's' : ''}
+                  {day.posts.length > 1 && (
+                    <span> · in {day.posts.map((p, i) => <>{i > 0 && ', '}<a href={`/blog/${p.slug}`}>{p.title}</a></>)}</span>
+                  )}
+                </p>
               </article>
             ))}
           </div>
         ) : (
-          <p class="section-empty">No outings published yet — check back soon.</p>
+          <p class="section-empty">No observations yet. Check back soon.</p>
         )}
       </div>
     </div>
@@ -62,4 +110,10 @@ const pageDescription = 'Field notes from iNaturalist — observations, species,
   .nature-outing-title a { color: var(--text-primary); text-decoration: none; }
   .nature-outing-title a:hover { color: var(--accent-primary); }
   .nature-species { font-family: var(--font-body); color: var(--text-secondary); margin: 0; }
+  .nature-place { font-size: var(--text-sm); color: var(--text-secondary); margin: 0 0 var(--space-sm) 0; }
+  .nature-thumbs { display: flex; gap: var(--space-xs); margin: 0 0 var(--space-sm) 0; }
+  .nature-thumbs img { width: 72px; height: 72px; object-fit: cover; border-radius: var(--radius-sm); }
+  .nature-meta { font-size: var(--text-xs); color: var(--text-secondary); margin: var(--space-xs) 0 0 0; }
+  .nature-meta a { color: var(--text-secondary); }
+  .nature-meta a:hover { color: var(--accent-primary); }
 </style>

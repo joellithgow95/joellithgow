@@ -127,6 +127,10 @@ const blogPostSchema = z.object({
   image: blogImageSchema.optional(),
   links: z.array(linkItemSchema).optional(),
   tags: z.array(z.string()).optional(),
+  /** Slices (cms/slices.py). The CMS validates them on save, so only the
+   *  discriminator is checked here: an unexpected shape is skipped by
+   *  src/lib/slices.ts rather than failing the build. */
+  data: z.array(z.object({ block_type: z.string() }).passthrough()).nullable().optional(),
   featured: z.boolean().optional(),
   /** null = reading time explicitly unset; absent = not calculated */
   reading_time: z.number().nullable().optional(),
@@ -298,6 +302,73 @@ const definitionSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// Data documents (ADR 026): one per item, shown only through posts' slices.
+// Lenient on purpose: every field the gateway may leave empty is optional, so
+// one odd record cannot fail the build. Keyed by document id, which is what a
+// picked slice stores.
+// ---------------------------------------------------------------------------
+
+const dataMeta = {
+  _id: z.string(),
+  _published: z.boolean().optional(),
+  _created_at: z.string().optional(),
+  _updated_at: z.string().optional(),
+};
+
+const spotifyLikeSchema = z.object({
+  title: z.string().nullish(),
+  track_id: z.string(),
+  track_name: z.string(),
+  artist_name: z.string().nullish(),
+  album_name: z.string().nullish(),
+  album_art_url: z.string().nullish(),
+  spotify_url: z.string().nullish(),
+  liked_at: z.string(),
+  ...dataMeta,
+});
+
+const inatObservationSchema = z.object({
+  title: z.string().nullish(),
+  observation_id: z.number().nullish(),
+  uri: z.string().nullish(),
+  observed_on: z.string(),
+  time_observed_at: z.string().nullish(),
+  taxon_name: z.string().nullish(),
+  common_name: z.string().nullish(),
+  iconic_taxon: z.string().nullish(),
+  place_guess: z.string().nullish(),
+  lat: z.number().nullish(),
+  lon: z.number().nullish(),
+  photo_urls: z.array(z.string()).nullish(),
+  tags: z.array(z.string()).nullish(),
+  ...dataMeta,
+});
+
+const linkDocSchema = z.object({
+  title: z.string(),
+  url: z.string(),
+  description: z.string().nullish(),
+  date_added: z.string(),
+  tags: z.array(z.string()).nullish(),
+  ...dataMeta,
+});
+
+/** A loader for a data type: entries keyed by CMS document id, not slug. */
+function dataLoader(docType: string) {
+  return async () => {
+    const docs = await loadAstraeusDocuments(docType);
+    return docs.map((d) => ({
+      id: d.id,
+      ...(d.body as Record<string, unknown>),
+      _id: d.id,
+      _published: d.published,
+      _created_at: d.created_at,
+      _updated_at: d.updated_at,
+    }));
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Collection definitions
 // ---------------------------------------------------------------------------
 
@@ -409,6 +480,11 @@ export const collections = {
     },
     schema: definitionSchema,
   }),
+
+  // ── Astraeus CMS — data documents (ADR 026) ──────────────────────────────
+  spotify_likes: defineCollection({ loader: dataLoader('spotify_like'), schema: spotifyLikeSchema }),
+  inat_observations: defineCollection({ loader: dataLoader('inat_observation'), schema: inatObservationSchema }),
+  links: defineCollection({ loader: dataLoader('link'), schema: linkDocSchema }),
 };
 
 // ---------------------------------------------------------------------------
@@ -423,4 +499,4 @@ export type ProjectPage = z.infer<typeof projectPageSchema>;
 export type ExperienceEntry = z.infer<typeof experienceEntrySchema>;
 export type SpotifyDump = z.infer<typeof spotifyDumpSchema>;
 export type NatureOuting = z.infer<typeof natureOutingSchema>;
-export type Definition = z.infer<typeof definitionSchema>;
+export type Definition = z.infer<typeof definitionSchema>;

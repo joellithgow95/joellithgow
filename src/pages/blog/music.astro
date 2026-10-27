@@ -1,35 +1,43 @@
 ---
 import BaseLayout from '@components/common/BaseLayout.astro';
 import ThemeModal from '@components/modals/ThemeModal.astro';
+import AlbumMosaic from '@components/blog/AlbumMosaic.astro';
 import { fetchBlogPosts } from '@lib/astraeus';
+import type { MosaicSong } from '@lib/album-mosaic';
+import { loadDataPool, postsByItem, postsShowing, type PostRef, type Song } from '@lib/slices';
 import '../../styles/log.css';
 
-// Group a dump's songs by album; bigger cover = more liked songs (matches the index feed).
-type AlbumCell = { art: string; name: string; artist: string; count: number; href?: string };
-function albumMosaic(songs: any[]): AlbumCell[] {
-  const map = new Map<string, AlbumCell>();
-  for (const s of songs) {
-    if (!s.album_art_url) continue;
-    const key = s.album_name || s.album_art_url;
-    const existing = map.get(key);
-    if (existing) {
-      existing.count += 1;
-    } else {
-      map.set(key, {
-        art: (s.album_art_url as string).replace('ab67616d00004851', 'ab67616d0000b273'),
-        name: s.album_name || s.track_name,
-        artist: s.artist_name,
-        count: 1,
-        href: s.spotify_url,
-      });
-    }
-  }
-  return Array.from(map.values()).sort((a, b) => b.count - a.count);
-}
+// Every liked song, by the month it was liked, newest first; each month links
+// to the posts that show its songs. Until the data gateway has run (no
+// spotify_like documents yet), the legacy monthly posts stand in, one month
+// each, and until the migration converts them they are linked from their month.
+type Month = { key: string; songs: MosaicSong[]; posts: PostRef[] };
 
-const dumps = (await fetchBlogPosts())
-  .filter((p: any) => p.kind === 'spotify_dump')
-  .sort((a, b) => new Date(b.publish_date).valueOf() - new Date(a.publish_date).valueOf());
+const allPosts = await fetchBlogPosts();
+const { songs } = await loadDataPool();
+const byItem = await postsByItem(allPosts.filter((p) => p.kind === 'post') as any);
+const legacyMonths = allPosts.filter((p: any) => p.kind === 'spotify_dump') as any[];
+const legacyPosts = (key: string) =>
+  legacyMonths.filter((d) => d.publish_date.slice(0, 7) === key).map((d) => ({ slug: d.slug, title: d.title }));
+
+let months: Month[];
+if (songs.length > 0) {
+  const grouped = new Map<string, Song[]>();
+  for (const song of songs) {
+    const key = song.liked_at.slice(0, 7);
+    grouped.set(key, [...(grouped.get(key) ?? []), song]);
+  }
+  months = [...grouped.entries()].map(([key, monthSongs]) => ({
+    key,
+    songs: monthSongs,
+    posts: [...postsShowing(monthSongs.map((s) => s._id), byItem), ...legacyPosts(key)],
+  }));
+} else {
+  months = legacyMonths.map((dump) => ({ key: dump.publish_date.slice(0, 7), songs: dump.songs ?? [], posts: [{ slug: dump.slug, title: dump.title }] }));
+}
+months.sort((a, b) => b.key.localeCompare(a.key));
+const monthLabel = (key: string) =>
+  new Date(`${key}-01T00:00:00Z`).toLocaleDateString('en-US', { year: 'numeric', month: 'long', timeZone: 'UTC' });
 
 // Featured Spotify links (share ?si= params stripped).
 const spotifyLinks = [
@@ -40,7 +48,7 @@ const spotifyLinks = [
 ];
 
 const pageTitle = 'Joel Lithgow > Music';
-const pageDescription = "What I've been listening to — monthly liked-song dumps.";
+const pageDescription = "What I've been listening to: every liked song, month by month.";
 ---
 
 <BaseLayout title={pageTitle} description={pageDescription}>
@@ -52,37 +60,25 @@ const pageDescription = "What I've been listening to — monthly liked-song dump
           <p class="section-desc">{pageDescription}</p>
         </header>
 
-        {dumps.length > 0 ? (
+        {months.length > 0 ? (
           <div class="music-list">
-            {dumps.map((dump: any) => (
+            {months.map((month) => (
               <article class="music-dump">
                 <h2 class="music-dump-title">
-                  <a href={`/blog/${dump.slug}`}>
-                    {new Date(dump.publish_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', timeZone: 'UTC' })}
-                  </a>
+                  {month.posts.length === 1 ? <a href={`/blog/${month.posts[0].slug}`}>{monthLabel(month.key)}</a> : monthLabel(month.key)}
                 </h2>
-                {dump.songs && dump.songs.length > 0 && (
-                  <div class="spotify-cover-grid">
-                    {albumMosaic(dump.songs).map((album) => {
-                      const span = album.count >= 4 ? 3 : album.count >= 2 ? 2 : 1;
-                      const label = `${album.name} — ${album.artist} · ${album.count} song${album.count > 1 ? 's' : ''}`;
-                      return album.href ? (
-                        <a href={album.href} target="_blank" rel="noopener noreferrer" class="cover-cell" data-span={span} title={label}>
-                          <img src={album.art} alt={label} loading="lazy" />
-                        </a>
-                      ) : (
-                        <span class="cover-cell" data-span={span} title={label}>
-                          <img src={album.art} alt={label} loading="lazy" />
-                        </span>
-                      );
-                    })}
-                  </div>
-                )}
+                <AlbumMosaic songs={month.songs} />
+                <p class="music-dump-meta">
+                  {month.songs.length} song{month.songs.length !== 1 ? 's' : ''}
+                  {month.posts.length > 1 && (
+                    <span> · in {month.posts.map((p, i) => <>{i > 0 && ', '}<a href={`/blog/${p.slug}`}>{p.title}</a></>)}</span>
+                  )}
+                </p>
               </article>
             ))}
           </div>
         ) : (
-          <p class="section-empty">No music dumps yet.</p>
+          <p class="section-empty">No liked songs yet.</p>
         )}
       </div>
 
@@ -125,4 +121,7 @@ const pageDescription = "What I've been listening to — monthly liked-song dump
   }
   .music-dump-title a { color: var(--text-primary); text-decoration: none; }
   .music-dump-title a:hover { color: var(--accent-primary); }
+  .music-dump-meta { font-size: var(--text-xs); color: var(--text-secondary); margin: var(--space-xs) 0 0 0; }
+  .music-dump-meta a { color: var(--text-secondary); }
+  .music-dump-meta a:hover { color: var(--accent-primary); }
 </style>
