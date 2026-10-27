@@ -20,6 +20,7 @@ There is one kind of post. What it looks like follows from what it holds:
 - Every post has its own page at `/blog/<slug>`.
 - On the feed, a post with an `excerpt` shows the excerpt. Without one, a short body (up to about 800 characters of Markdown) shows in full, and a longer one is cut off with "Continue reading". So a short thought needs no excerpt, and a long piece should have one.
 - A list of links goes in the `links` field (a list of link items). They render under the body on the post's page, and the feed card shows a "N links" badge. Items also show on `/blog/links` and the tag pages.
+- **Data a post shows goes in `data`, as slices** (`cms/slices.py`). A slice says which songs, observations, definitions or links to show; the site looks them up when it builds and draws them under the body (a compact version on the feed card). Kinds: `music_range` / `nature_range` (`{from_date, to_date}`, YYYY-MM-DD, both included), `music_picks` / `nature_picks` / `definition_picks` / `link_picks` (`{refs: [document ids]}`, shown in that order) and `links_by_tag` (`{tag}`, every `link` document with that tag). The CMS refuses a bad slice on save. A month of music is one `music_range`; "the birds from this trip" is a `nature_picks`.
 
 Older posts still carry `post_type` and `has_detail_page` from before this change. The CMS drops both the next time the post is saved; don't set them.
 

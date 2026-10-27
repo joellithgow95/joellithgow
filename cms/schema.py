@@ -8,12 +8,16 @@ from starlette_cms import (
     BoolField,
     JSONField,
     LinksField,
+    ListField,
     NumberField,
     RichTextField,
     SelectField,
     TagsField,
     TextField,
+    URLField,
 )
+
+from cms.slices import SLICE_BLOCKS
 
 
 def register_documents(cms: CMS) -> None:
@@ -63,6 +67,18 @@ def register_documents(cms: CMS) -> None:
             ),
         )
         tags: list | None = TagsField()
+        # What the post shows from the data documents below (ADR 026): each
+        # block is an instruction (a date range, picked refs, a tag) the site
+        # resolves at build time. Validated on save; see cms/slices.py.
+        data: list | None = ListField(
+            blocks=SLICE_BLOCKS,
+            help_text=(
+                "Data this post shows, as a list of slices: songs or observations from a date range "
+                "(music_range, nature_range), hand-picked songs, observations, definitions or links "
+                "(music_picks, nature_picks, definition_picks, link_picks), or every link with a tag "
+                "(links_by_tag). Shown after the body, in this order."
+            ),
+        )
         featured: bool = BoolField(default=False)
         reading_time: float | None = NumberField(min_value=0.0, precision=0)
 
@@ -162,6 +178,17 @@ def register_documents(cms: CMS) -> None:
         lon: float | None = NumberField(min_value=-180.0, max_value=180.0)
         photo_urls: list | None = JSONField()                           # [str]
         tags: list | None = TagsField()                                 # taxon group, e.g. ["birds"]
+
+    @cms.document("link", group="Data")
+    class LinkDocument:
+        # One external link, stored once and shown through posts' link slices
+        # (links_by_tag, link_picks). Tags group links into lists, e.g.
+        # developer-blog, inspo, friends, reading.
+        title: str = TextField(required=True, max_length=500)
+        url: str = URLField(required=True)
+        description: str = TextField(max_length=2000)
+        date_added: str = TextField(required=True)                      # YYYY-MM-DD
+        tags: list | None = TagsField()
 
     @cms.document("definition")
     class DefinitionDocument:

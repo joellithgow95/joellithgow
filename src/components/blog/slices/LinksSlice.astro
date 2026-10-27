@@ -1,0 +1,39 @@
+---
+/**
+ * LinksSlice — link documents from a post's links slice. Full: the same
+ * accordion as /blog/links. Compact (feed card): the first few titles.
+ */
+import LinksAccordion from '../LinksAccordion.astro';
+import type { Link } from '@lib/slices';
+
+export interface Props {
+  links: Link[];
+  compact?: boolean;
+}
+
+const { links, compact = false } = Astro.props;
+const LINKS_ON_CARD = 5;
+---
+
+<section class="slice slice--links">
+  {compact ? (
+    <ul class="slice-link-list">
+      {links.slice(0, LINKS_ON_CARD).map((l) => (
+        <li><a href={l.url} target="_blank" rel="noopener noreferrer">{l.title} ↗</a></li>
+      ))}
+      {links.length > LINKS_ON_CARD && <li class="slice-link-more">+{links.length - LINKS_ON_CARD} more</li>}
+    </ul>
+  ) : (
+    <LinksAccordion links={links.map((l) => ({ url: l.url, title: l.title, description: l.description ?? undefined }))} />
+  )}
+</section>
+
+<style>
+  @import '../../../styles/tokens.css';
+
+  .slice { margin: var(--space-lg) 0; }
+  .slice-link-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-xs); }
+  .slice-link-list a { color: var(--text-primary); }
+  .slice-link-list a:hover { color: var(--accent-primary); }
+  .slice-link-more { font-size: var(--text-xs); color: var(--text-secondary); }
+</style>

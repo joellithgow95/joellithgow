@@ -1,0 +1,62 @@
+---
+/**
+ * AlbumMosaic — liked songs as a grid of album covers; an album with more
+ * liked songs gets a bigger cover.
+ */
+import { albumMosaic, coverSpan, type MosaicSong } from '@lib/album-mosaic';
+
+export interface Props {
+  songs: MosaicSong[];
+}
+
+const albums = albumMosaic(Astro.props.songs);
+---
+
+{albums.length > 0 && (
+  <div class="spotify-cover-grid">
+    {albums.map((album) => {
+      const label = `${album.name} — ${album.artist} · ${album.count} song${album.count > 1 ? 's' : ''}`;
+      return album.href ? (
+        <a href={album.href} target="_blank" rel="noopener noreferrer" class="cover-cell" data-span={coverSpan(album.count)} title={label}>
+          <img src={album.art} alt={label} loading="lazy" />
+        </a>
+      ) : (
+        <span class="cover-cell" data-span={coverSpan(album.count)} title={label}>
+          <img src={album.art} alt={label} loading="lazy" />
+        </span>
+      );
+    })}
+  </div>
+)}
+
+<style>
+  @import '../../styles/tokens.css';
+
+  .spotify-cover-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 76px);
+    grid-auto-rows: 76px;
+    grid-auto-flow: dense;
+    gap: var(--space-xs);
+    justify-content: start;
+  }
+  .spotify-cover-grid .cover-cell {
+    display: block;
+    overflow: hidden;
+    border: 1px solid var(--gradient-primary-subtle);
+    transition: transform var(--duration-base) var(--ease-out);
+  }
+  .spotify-cover-grid .cover-cell[data-span="2"] { grid-column: span 2; grid-row: span 2; }
+  .spotify-cover-grid .cover-cell[data-span="3"] { grid-column: span 3; grid-row: span 3; }
+  .spotify-cover-grid .cover-cell img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .spotify-cover-grid .cover-cell:hover {
+    transform: scale(1.05);
+    z-index: 1;
+    position: relative;
+  }
+</style>

@@ -139,35 +139,6 @@
 .type-card--secondary { background: var(--accent-secondary); color: var(--card-alt-text-2); }
 .type-card--tertiary { background: var(--accent-tertiary); color: var(--card-alt-text-3); }
 
-/* ---- Album mosaic (music dumps): dedup by album, bigger = more liked songs ---- */
-.spotify-cover-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, 76px);
-  grid-auto-rows: 76px;
-  grid-auto-flow: dense;
-  gap: var(--space-xs);
-  justify-content: start;
-}
-.spotify-cover-grid .cover-cell {
-  display: block;
-  overflow: hidden;
-  border: 1px solid var(--gradient-primary-subtle);
-  transition: transform var(--duration-base) var(--ease-out);
-}
-.spotify-cover-grid .cover-cell[data-span="2"] { grid-column: span 2; grid-row: span 2; }
-.spotify-cover-grid .cover-cell[data-span="3"] { grid-column: span 3; grid-row: span 3; }
-.spotify-cover-grid .cover-cell img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-.spotify-cover-grid .cover-cell:hover {
-  transform: scale(1.05);
-  z-index: 1;
-  position: relative;
-}
-
 /* ---- Tablet/phone: single column, sidebar below ---- */
 @media (max-width: 900px) {
   .blog-wrapper {
