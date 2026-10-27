@@ -139,8 +139,23 @@ jlithgow-ops (see *Where prod runs*). The `mcp-deploy` / `caddy-deploy` targets 
 
 ## Gateways (Spotify + iNaturalist sync)
 
-Both gateways are `starlette-cms-gateways` subclasses in `cms/gateways/`, run through the `sync_gateway` MCP tool
-(hermes, the Claude app), the admin page (`/gateways`) or `gateways sync`. They are configured per gateway, not hard-coded:
+The gateways are `starlette-cms-gateways` subclasses in `cms/gateways/`, run through the `sync_gateway` MCP tool
+(hermes, the Claude app), the admin page (`/gateways`) or `gateways sync`. There are two pairs while the content
+model moves to data documents (astraeus ADR 026):
+
+- **Data gateways (new): `spotify-likes` and `inaturalist-observations`.** One small document per song
+  (`spotify_like`, ref `spotify:like:<track id>`) and per sighting (`inat_observation`, ref
+  `inaturalist:observation:<id>`), filed under **Data** in the editor. Published, but the site does not read them
+  yet, so they have no page or feed card and cannot break the build; the slices work renders them through posts.
+  Every field is the gateway's, so a re-sync overwrites the record (the `title` is a label built from the data,
+  not for hand edits). No clustering: which sightings make an outing is a post's choice. Ranges as below, except
+  Spotify's `custom` is liked *dates* and the floor is 2025-01-01. A song you un-like or a deleted observation keeps
+  its document. Their own cursors: the first run of each is `all_time` (about 1,000 songs, one publish).
+- **Legacy post gateways: `spotify-liked-dump` and `inaturalist-field-trips`.** Still keep the live month and
+  outing posts current, so run them alongside the data gateways until the migration converts those posts into
+  posts with slices and removes them. Everything below describes these two.
+
+They are configured per gateway, not hard-coded:
 
 - **One post per outing / month.** iNat: same observed date and observations within **3 km** of each other
   (chained, so a trail is one outing; `DEFAULT_RADIUS_M = 3000`, override with `INATURALIST_OUTING_RADIUS_M`) is one
@@ -222,7 +237,7 @@ cms/
   oauth.py                      # OAuth server for the MCP connectors (Claude app)
   mcp_server.py                 # content MCP (stdio local / streamable-http sidecar :8002)
   gateway_mcp_server.py         # gateway MCP sidecar (:8003) — sync tools
-  gateways/                     # Spotify + iNaturalist sync workers
+  gateways/                     # Spotify + iNaturalist sync workers (data: spotify_likes, inaturalist_observations)
 src/lib/
   astraeus-loader.ts            # paginated HTTP loader for Astro Content Layer
   astraeus-types.ts             # TypeScript interfaces mirroring CMS schemas
@@ -237,8 +252,9 @@ src/content/config.ts           # collection definitions + Zod schemas
 | `blog` | `blog_post` | Every post (one type: articles, short thoughts, link lists) |
 | `projects` | `project_page` | Case studies |
 | `experience` | `experience_entry` | Work history |
-| `spotifyDumps` | `spotify_liked_dump` | Gateway-sourced |
-| `inaturalistOutings` | `inaturalist_outing` | Gateway-sourced |
+| `spotifyDumps` | `spotify_liked_dump` | Gateway-sourced (legacy month posts) |
+| `inaturalistOutings` | `inaturalist_outing` | Gateway-sourced (legacy outing posts) |
+| — | `spotify_like`, `inat_observation` | Data docs, one per song / sighting. Not loaded by the site yet (ADR 026 slices) |
 | `definitions` | `definition` | Glossary terms; routes under `/blog/dictionary/`. CMS-only, not seeded from local files |
 | `applications` | Local MDX | Not in CMS — intentional |
 

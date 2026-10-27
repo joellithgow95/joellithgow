@@ -100,10 +100,12 @@ async def list_gateways() -> str:
         auto = getattr(cls, "auto_publish", False)
         imm = getattr(cls, "immutable", False)
         default_range = getattr(cls, "default_range", "since_last_sync")
+        summary = " ".join((cls.__doc__ or "").split("\n\n")[0].split())
         lines.append(
             f"- **{name}**  "
             f"service=`{svc}`  block=`{bt}`  "
             f"auto_publish={auto}  immutable={imm}  default_range={default_range}"
+            + (f"\n  {summary}" if summary else "")
         )
     return "\n".join(lines)
 
@@ -126,8 +128,8 @@ async def sync_gateway(
     """
     Sync a named gateway into the CMS.
 
-    Discovers external service data (Spotify liked songs, iNaturalist field
-    trips, etc.) and upserts it as CMS documents, publishing the whole run as one changeset
+    Discovers external service data (Spotify liked songs, iNaturalist
+    observations) and upserts it as CMS documents, publishing the whole run as one changeset
     (so one site rebuild, and all or nothing). A re-sync that finds nothing new changes nothing, and fields you
     edited in the editor are never overwritten (an iNaturalist outing's tags are
     the exception: they follow the observations). A post someone has an unpublished
@@ -137,13 +139,16 @@ async def sync_gateway(
 
     Args:
         gateway_name: The entry-point name of the gateway, e.g.
-            ``spotify-liked-dump`` or ``inaturalist-field-trips``.
+            ``spotify-likes`` or ``inaturalist-observations`` (one data document
+            per song or sighting). ``spotify-liked-dump`` and
+            ``inaturalist-field-trips`` are the legacy month and outing posts.
         range: What to cover. ``since_last_sync`` (the default for both
             gateways) fetches only what changed since the last run;
             ``all_time`` re-reads everything (first run, or to repair);
             ``custom`` backfills ``from_date``..``to_date``.
         from_date: ``YYYY-MM-DD``. For ``custom``: the first observed date
-            (iNaturalist) or liked month (Spotify) to include.
+            (iNaturalist) or liked date (Spotify; the month, for the legacy
+            gateway) to include.
         to_date: ``YYYY-MM-DD``. For ``custom``: the last one to include.
     """
     try:
