@@ -150,7 +150,10 @@ async def test_slice_fields_tell_the_editor_what_to_offer(client):
     # The editor reads these: a date picker for ranges, the link tags for a
     # tag slice, and a definition's term (it has no title) in the picker.
     defs = (await client.get("/api/schema")).json()["blog_post"]["schema"]["$defs"]
-    meta = lambda block, field: defs[block]["properties"][field]["cms:field_meta"]  # noqa: E731
+
+    def meta(block: str, field: str) -> dict:
+        return defs[block]["properties"][field]["cms:field_meta"]
+
     assert meta("MusicRange", "from_date")["field_type"] == "date"
     assert meta("LinksByTag", "tag")["suggest_from"] == "link"
     assert meta("DefinitionPicks", "refs")["ref_label_field"] == "term"
