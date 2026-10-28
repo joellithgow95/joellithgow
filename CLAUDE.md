@@ -218,12 +218,12 @@ src/content/config.ts           # collection definitions + Zod schemas
 | `experience` | `experience_entry` | Work history |
 | `spotify_likes`, `inat_observations` | `spotify_like`, `inat_observation` | Gateway data docs (ADR 026), filed under **Data** in the editor, keyed by document id. Shown only through posts' slices and the music/nature pages |
 | `links` | `link` | Hand-curated links, in the main content list (not **Data**, which is only scraped third-party data). Shown only through posts' link slices |
-| `definitions` | `definition` | Glossary terms; routes under `/blog/dictionary/`. CMS-only, not seeded from local files |
+| `definitions` | `definition` | Dictionary data; pages under `/blog/dictionary/`. Meant to reach the feed only through a post's `definition_picks` (each still has its own feed card until that is built). CMS-only, not seeded from local files |
 | `applications` | Local MDX | Not in CMS — intentional |
 
 ### Writing content
 
-**`cms/schema.py` is the source of truth for field names and types.** `src/lib/astraeus-types.ts` and `src/content/config.ts` mirror it by hand, so check `schema.py` first if they disagree. For voice, how a post shows on the feed and tag habits, see `docs/blog-conventions.md`.
+**`cms/schema.py` is the source of truth for field names and types.** `src/lib/astraeus-types.ts` and `src/content/config.ts` mirror it by hand, so check `schema.py` first if they disagree. **`docs/blog-conventions.md` is the guide for writing content**: posts vs data, slices, the definition flow (a definition is the term and its sources; Joel's take goes in a post that picks it), links, voice, tags, and what is still in progress.
 
 - CMS fields are `snake_case` (`publish_date`, `reading_time`). The legacy markdown files in `src/content/blog/` are seed sources with `camelCase` frontmatter (`publishDate`, `readingTime`); their `type` and `hasDetailPage` are no longer read. The site reads from the CMS, not from those files.
 - A definition is **not** a blog post: it has `term`, `definition`, `personal_notes`, `sources`, `tags` and no `kind` of its own. The site tags each feed item with a synthetic `kind` (`post`, `definition`) when it merges them into blog feeds (`src/lib/astraeus.ts`). `blog_post` has no type field: every post has a detail page, and the feed card shows the excerpt, or the whole body when it is short (see `docs/blog-conventions.md`).
