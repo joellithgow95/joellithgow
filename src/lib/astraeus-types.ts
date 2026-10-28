@@ -26,17 +26,6 @@ export interface BlogImage {
   link?: string;
 }
 
-export interface LinkItem {
-  url: string;
-  title: string;
-  description: string;
-  author?: string;
-  tags?: string[];
-  /** ISO 8601 — wrap with new Date() */
-  date_added: string;
-  collections?: string[];
-}
-
 export interface BlogPost {
   slug: string;
   title: string;
@@ -47,7 +36,6 @@ export interface BlogPost {
   excerpt?: string;
   author?: string;
   image?: BlogImage | null;
-  links?: LinkItem[] | null;
   tags?: string[] | null;
   /** Slices of the data documents this post shows (cms/slices.py) */
   data?: Slice[] | null;

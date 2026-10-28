@@ -88,9 +88,7 @@ const pageDescription = `All blog posts tagged with ${tag}.`;
               const href = isDefinition ? `/blog/dictionary/${post.slug}` : `/blog/${post.slug}`;
               const title = isDefinition ? ((post as any).term || (post as any).title) : (post as any).title;
               const count =
-                post.kind === 'post' && sliceCount.has(post.slug) ? sliceCount.get(post.slug)
-                : post.kind === 'post' && (post as any).links?.length ? `${(post as any).links.length} links`
-                : null;
+                post.kind === 'post' && sliceCount.has(post.slug) ? sliceCount.get(post.slug) : null;
               return (
                 <article class="log-item">
                   <time class="log-date" datetime={new Date(post.publish_date).toISOString()}>

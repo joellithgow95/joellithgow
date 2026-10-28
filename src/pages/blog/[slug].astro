@@ -11,7 +11,6 @@ import PerformanceOptimizer from '@components/ui/PerformanceOptimizer.astro';
 import Card from '@components/primitives/Card.astro';
 import Badge from '@components/primitives/Badge.astro';
 import Button from '@components/primitives/Button.astro';
-import LinksAccordion from '@components/blog/LinksAccordion.astro';
 import PostSlices from '@components/blog/slices/PostSlices.astro';
 import { resolveSlices } from '@lib/slices';
 import '../../styles/log.css';
@@ -38,7 +37,6 @@ const tags = post.tags || [];
 const author = ('author' in post && (post as any).author) as string | undefined;
 const reading_time = ('reading_time' in post && (post as any).reading_time) as number | undefined;
 const image = ('image' in post && (post as any).image) as AstraeusDocument<BlogPost>['image'] | undefined;
-const links = ('links' in post && (post as any).links) as AstraeusDocument<BlogPost>['links'] | undefined;
 const publishDate = new Date(publish_date);
 // The data this post shows (ADR 026 slices), resolved at build time
 const slices = kind === 'post' ? await resolveSlices((post as any).data) : [];
@@ -192,19 +190,6 @@ const breadcrumbSchema = {
               </div>
             )}
 
-            {/* The post's links, same accordion as the links page */}
-            {links && links.length > 0 && (
-              <section class="links-section">
-                <div class="links-header">
-                  <h2 class="links-title">Links</h2>
-                  <div class="links-meta">
-                    <span class="links-count">{links.length} link{links.length !== 1 ? 's' : ''}</span>
-                  </div>
-                </div>
-
-                <LinksAccordion links={links.map((l) => ({ url: l.url, title: l.title, description: l.description }))} />
-              </section>
-            )}
           </article>
       </div>
 

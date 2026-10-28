@@ -14,16 +14,6 @@ const blogImageSchema = z.object({
   link: z.string().optional(),
 });
 
-const linkItemSchema = z.object({
-  url: z.string(),
-  title: z.string(),
-  description: z.string().optional(),
-  author: z.string().optional(),
-  tags: z.array(z.string()).optional(),
-  date_added: z.string(),
-  collections: z.array(z.string()).optional(),
-});
-
 const heroMediaSchema = z.object({
   src: z.string(),
   alt: z.string(),
@@ -63,7 +53,6 @@ const blogPostSchema = z.object({
   excerpt: z.string().optional(),
   author: z.string().optional(),
   image: blogImageSchema.optional(),
-  links: z.array(linkItemSchema).optional(),
   tags: z.array(z.string()).optional(),
   /** Slices (cms/slices.py). The CMS validates them on save, so only the
    *  discriminator is checked here: an unexpected shape is skipped by
@@ -401,4 +390,4 @@ export type StatusEvent = z.infer<typeof statusEventSchema>;
 export type BlogPost = z.infer<typeof blogPostSchema>;
 export type ProjectPage = z.infer<typeof projectPageSchema>;
 export type ExperienceEntry = z.infer<typeof experienceEntrySchema>;
-export type Definition = z.infer<typeof definitionSchema>;
+export type Definition = z.infer<typeof definitionSchema>;
