@@ -232,6 +232,10 @@ src/content/config.ts           # collection definitions + Zod schemas
   `src/lib/slices.ts` resolves it against the published data docs at build time and skips a picked id that is not
   published, so a slice cannot break the build. The CMS validates slices on save (dates, order, tag shape, and that
   every picked ref exists and has the right type). Components: `src/components/blog/slices/`.
+  In the editor, **Data** on a post is a card per slice: ranges get date pickers, `links_by_tag` suggests the tags
+  already on links, and a picks slice searches its type by title (a definition by `term`). In `link_picks`, pasting
+  a URL no link has offers to create the `link` document there (a draft in the same changeset, so publish them
+  together; the site skips an unpublished pick).
 - Publishing, unpublishing and deleting fire the Netlify build hook through a CMS webhook. See *Rebuilding the site*.
 
 ## Gotchas

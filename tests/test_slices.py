@@ -144,3 +144,23 @@ async def test_slice_kinds_are_described_in_the_schema(client):
         "music_range", "nature_range", "music_picks", "nature_picks", "definition_picks", "link_picks", "links_by_tag",
     }
     assert all(described.values())
+
+
+async def test_slice_fields_tell_the_editor_what_to_offer(client):
+    # The editor reads these: a date picker for ranges, the link tags for a
+    # tag slice, and a definition's term (it has no title) in the picker.
+    defs = (await client.get("/api/schema")).json()["blog_post"]["schema"]["$defs"]
+
+    def meta(block: str, field: str) -> dict:
+        return defs[block]["properties"][field]["cms:field_meta"]
+
+    assert meta("MusicRange", "from_date")["field_type"] == "date"
+    assert meta("LinksByTag", "tag")["suggest_from"] == "link"
+    assert meta("DefinitionPicks", "refs")["ref_label_field"] == "term"
+
+
+async def test_link_date_added_must_be_a_date(client):
+    body = {"title": "A", "url": "https://example.com", "date_added": "Oct 1"}
+    assert (await _create(client, "link", body)).status_code == 422
+    body["date_added"] = "2026-10-01"
+    assert (await _create(client, "link", body)).status_code == 201

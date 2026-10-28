@@ -25,31 +25,18 @@ Example ``data`` value on a ``blog_post``::
 from __future__ import annotations
 
 import re
-from datetime import date
-
 from typing import Any
 
 from pydantic import field_validator, model_validator
 from pydantic_core import PydanticCustomError
-from starlette_cms import DocumentRef, ListField, TextField
+from starlette_cms import DateField, DocumentRef, ListField, TagField
 from starlette_cms.model_builder import build_block_model
 
-_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _TAG = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 
 
 # Errors are PydanticCustomError, not ValueError: the CMS returns the error
-# list as JSON, and a ValueError in it is not serializable.
-
-
-def _iso_date(value: str) -> str:
-    try:
-        date.fromisoformat(value)  # rejects 2026-02-30
-    except ValueError:
-        value = ""
-    if not _DATE.match(value):
-        raise PydanticCustomError("slice_date", "must be a date as YYYY-MM-DD")
-    return value
+# list as JSON. DateField (astraeus) checks each date is a real YYYY-MM-DD.
 
 
 def _in_order(self: Any) -> Any:
@@ -62,8 +49,8 @@ def _in_order(self: Any) -> Any:
 
 
 class _DateRange:
-    from_date: str = TextField(required=True, placeholder="2026-10-01", help_text="First day, YYYY-MM-DD")
-    to_date: str = TextField(required=True, placeholder="2026-10-31", help_text="Last day, YYYY-MM-DD (included)")
+    from_date: str = DateField(required=True, help_text="First day")
+    to_date: str = DateField(required=True, help_text="Last day (included)")
 
 
 class _SongPicks:
@@ -75,7 +62,7 @@ class _ObservationPicks:
 
 
 class _DefinitionPicks:
-    refs: list = ListField(DocumentRef(block_type="definition", on_delete="nullify"), label="Definitions")
+    refs: list = ListField(DocumentRef(block_type="definition", on_delete="nullify", label_field="term"), label="Definitions")
 
 
 class _LinkPicks:
@@ -83,7 +70,8 @@ class _LinkPicks:
 
 
 class _ByTag:
-    tag: str = TextField(required=True, max_length=100, placeholder="developer-blog")
+    # Suggests the tags already on link documents, so a slice names a list that exists.
+    tag: str = TagField(required=True, suggest_from="link", placeholder="developer-blog")
 
 
 # ── Slice blocks ─────────────────────────────────────────────────────────────
@@ -93,14 +81,12 @@ class _ByTag:
 class MusicRange(build_block_model("music_range", _DateRange)):
     """Spotify likes whose liked_at falls between from_date and to_date (both included)."""
 
-    _check_dates = field_validator("from_date", "to_date")(_iso_date)
     _check_order = model_validator(mode="after")(_in_order)
 
 
 class NatureRange(build_block_model("nature_range", _DateRange)):
     """iNaturalist observations whose observed_on falls between from_date and to_date (both included)."""
 
-    _check_dates = field_validator("from_date", "to_date")(_iso_date)
     _check_order = model_validator(mode="after")(_in_order)
 
 
