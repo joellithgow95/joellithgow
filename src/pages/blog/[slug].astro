@@ -286,9 +286,9 @@ const breadcrumbSchema = {
 
               <div class="article-meta">
                 <div class="author-info">
-                  <span>By {author}</span>
+                  {author && <span>By {author}</span>}
                   {reading_time && (
-                    <span> • {reading_time} min read</span>
+                    <span>{author ? ' • ' : ''}{reading_time} min read</span>
                   )}
                 </div>
 
@@ -559,6 +559,11 @@ const breadcrumbSchema = {
     line-height: var(--leading-relaxed);
     font-size: var(--text-lg);
     padding: 0 var(--space-3xl) var(--space-2xl);
+  }
+
+  /* A post that is only its slices (a music month, an outing) has no body */
+  .article-content:empty {
+    padding-bottom: 0;
   }
 
   /* Slices sit under the body, at the body's width */

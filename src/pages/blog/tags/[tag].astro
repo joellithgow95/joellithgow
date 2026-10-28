@@ -9,6 +9,7 @@ import PerformanceOptimizer from '@components/ui/PerformanceOptimizer.astro';
 import Badge from '@components/primitives/Badge.astro';
 import Button from '@components/primitives/Button.astro';
 import LinksAccordion from '@components/blog/LinksAccordion.astro';
+import { resolveSlices } from '@lib/slices';
 import '../../../styles/log.css';
 
 export const getStaticPaths = (async () => {
@@ -28,6 +29,17 @@ export const getStaticPaths = (async () => {
       });
     }
   });
+
+  // What a post's slices show, as "N tracks" / "N obs", for its row's count
+  const sliceCount = new Map<string, string>();
+  for (const post of allPosts) {
+    if (post.kind !== 'post') continue;
+    const resolved = await resolveSlices((post as any).data);
+    const songs = resolved.reduce((n, r) => n + (r.kind === 'music' ? r.songs.length : 0), 0);
+    const obs = resolved.reduce((n, r) => n + (r.kind === 'nature' ? r.observations.length : 0), 0);
+    if (songs) sliceCount.set(post.slug, `${songs} tracks`);
+    else if (obs) sliceCount.set(post.slug, `${obs} obs`);
+  }
 
   // Create a path for each tag
   return Array.from(allTags).map((tag) => {
@@ -56,12 +68,12 @@ export const getStaticPaths = (async () => {
 
     return {
       params: { tag },
-      props: { posts: postsWithTag, links: linksWithTag, tag },
+      props: { posts: postsWithTag, links: linksWithTag, tag, sliceCount },
     };
   });
 }) satisfies GetStaticPaths;
 
-const { posts, links, tag } = Astro.props;
+const { posts, links, tag, sliceCount } = Astro.props;
 
 const pageTitle = `Posts tagged "${tag}"`;
 const pageDescription = `All blog posts tagged with ${tag}.`;
@@ -93,7 +105,8 @@ const pageDescription = `All blog posts tagged with ${tag}.`;
               const href = isDefinition ? `/blog/dictionary/${post.slug}` : `/blog/${post.slug}`;
               const title = isDefinition ? ((post as any).term || (post as any).title) : (post as any).title;
               const count =
-                post.kind === 'post' && (post as any).links?.length ? `${(post as any).links.length} links`
+                post.kind === 'post' && sliceCount.has(post.slug) ? sliceCount.get(post.slug)
+                : post.kind === 'post' && (post as any).links?.length ? `${(post as any).links.length} links`
                 : post.kind === 'spotify_dump' ? `${(post as any).song_count || 0} tracks`
                 : post.kind === 'nature_outing' ? `${(post as any).observation_count || 0} obs`
                 : null;

@@ -140,8 +140,7 @@ async def sync_gateway(
     Args:
         gateway_name: The entry-point name of the gateway, e.g.
             ``spotify-likes`` or ``inaturalist-observations`` (one data document
-            per song or sighting). ``spotify-liked-dump`` and
-            ``inaturalist-field-trips`` are the legacy month and outing posts.
+            per song or sighting).
         range: What to cover. ``since_last_sync`` (the default for both
             gateways) fetches only what changed since the last run;
             ``all_time`` re-reads everything (first run, or to repair);
