@@ -6,6 +6,7 @@ from __future__ import annotations
 from starlette_cms import (
     CMS,
     BoolField,
+    DateField,
     JSONField,
     LinksField,
     ListField,
@@ -164,7 +165,7 @@ def register_documents(cms: CMS) -> None:
         title: str = TextField(required=True, max_length=500)
         url: str = URLField(required=True)
         description: str = TextField(max_length=2000)
-        date_added: str = TextField(required=True)                      # YYYY-MM-DD
+        date_added: str = DateField(required=True)
         tags: list | None = TagsField()
 
     @cms.document("definition")
