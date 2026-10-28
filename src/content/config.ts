@@ -50,68 +50,6 @@ const bodyBlockSchema = z.object({
 }).catchall(z.unknown());
 
 // ---------------------------------------------------------------------------
-// Spotify liked dump schema
-// ---------------------------------------------------------------------------
-
-const spotifySongSchema = z.object({
-  track_name: z.string(),
-  artist_name: z.string(),
-  album_name: z.string().optional(),
-  album_art_url: z.string().optional(),
-  spotify_url: z.string(),
-  liked_at: z.string(),
-});
-
-const spotifyDumpSchema = z.object({
-  slug: z.string(),
-  title: z.string(),
-  description: z.string().optional(),
-  /** ISO 8601 — first day of the month (YYYY-MM-01) */
-  publish_date: z.string(),
-  song_count: z.number().optional(),
-  songs: z.array(spotifySongSchema).optional(),
-  tags: z.array(z.string()).optional(),
-  // CMS metadata
-  _id: z.string(),
-  _published: z.boolean().optional(),
-  _created_at: z.string().optional(),
-  _updated_at: z.string().optional(),
-});
-
-// ---------------------------------------------------------------------------
-// iNaturalist outing schema
-// ---------------------------------------------------------------------------
-
-const boundingBoxSchema = z.object({
-  lat_min: z.number(),
-  lat_max: z.number(),
-  lon_min: z.number(),
-  lon_max: z.number(),
-});
-
-const natureOutingSchema = z.object({
-  slug: z.string(),
-  title: z.string(),
-  description: z.string().optional(),
-  /** ISO 8601 — date of the outing */
-  publish_date: z.string(),
-  /** Same as publish_date — explicit field for query clarity */
-  outing_date: z.string(),
-  place_guess: z.string().optional(),
-  observation_count: z.number().optional(),
-  species_list: z.array(z.string()).optional(),
-  observations: z.array(z.record(z.unknown())).optional(),
-  photo_urls: z.array(z.string()).optional(),
-  bounding_box: boundingBoxSchema.optional(),
-  tags: z.array(z.string()).optional(),
-  // CMS metadata
-  _id: z.string(),
-  _published: z.boolean().optional(),
-  _created_at: z.string().optional(),
-  _updated_at: z.string().optional(),
-});
-
-// ---------------------------------------------------------------------------
 // Blog post schema
 // ---------------------------------------------------------------------------
 
@@ -430,40 +368,6 @@ export const collections = {
     schema: experienceEntrySchema,
   }),
 
-  // ── Astraeus CMS — Spotify liked song dumps ───────────────────────────────
-  spotify_dumps: defineCollection({
-    loader: async () => {
-      const docs = await loadAstraeusDocuments('spotify_liked_dump');
-      return docs.map((d) => ({
-        id: d.slug,
-        slug: d.slug,  // convenience alias for entry.id — used by page routes and components
-        ...(d.body as Record<string, unknown>),
-        _id: d.id,
-        _published: d.published,
-        _created_at: d.created_at,
-        _updated_at: d.updated_at,
-      }));
-    },
-    schema: spotifyDumpSchema,
-  }),
-
-  // ── Astraeus CMS — iNaturalist field trip outings ─────────────────────────
-  nature_outings: defineCollection({
-    loader: async () => {
-      const docs = await loadAstraeusDocuments('inaturalist_outing');
-      return docs.map((d) => ({
-        id: d.slug,
-        slug: d.slug,
-        ...(d.body as Record<string, unknown>),
-        _id: d.id,
-        _published: d.published,
-        _created_at: d.created_at,
-        _updated_at: d.updated_at,
-      }));
-    },
-    schema: natureOutingSchema,
-  }),
-
   // ── Astraeus CMS — definitions / glossary ────────────────────────────────
   definitions: defineCollection({
     loader: async () => {
@@ -497,6 +401,4 @@ export type StatusEvent = z.infer<typeof statusEventSchema>;
 export type BlogPost = z.infer<typeof blogPostSchema>;
 export type ProjectPage = z.infer<typeof projectPageSchema>;
 export type ExperienceEntry = z.infer<typeof experienceEntrySchema>;
-export type SpotifyDump = z.infer<typeof spotifyDumpSchema>;
-export type NatureOuting = z.infer<typeof natureOutingSchema>;
 export type Definition = z.infer<typeof definitionSchema>;

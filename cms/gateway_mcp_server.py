@@ -129,13 +129,11 @@ async def sync_gateway(
     Sync a named gateway into the CMS.
 
     Discovers external service data (Spotify liked songs, iNaturalist
-    observations) and upserts it as CMS documents, publishing the whole run as one changeset
-    (so one site rebuild, and all or nothing). A re-sync that finds nothing new changes nothing, and fields you
-    edited in the editor are never overwritten (an iNaturalist outing's tags are
-    the exception: they follow the observations). A post someone has an unpublished
-    draft on is left alone and named in the reply; run ``all_time`` once they publish
-    or discard it to catch it up. Call ``list_gateways`` first to
-    see available gateway names.
+    observations) and upserts it as data documents, one per song or sighting,
+    publishing the whole run as one changeset (so one site rebuild, and all or
+    nothing). A re-sync that finds nothing new changes nothing. Every field of a data
+    document belongs to the gateway, so a re-sync overwrites a hand edit. Call
+    ``list_gateways`` first to see available gateway names.
 
     Args:
         gateway_name: The entry-point name of the gateway, e.g.
@@ -146,8 +144,7 @@ async def sync_gateway(
             ``all_time`` re-reads everything (first run, or to repair);
             ``custom`` backfills ``from_date``..``to_date``.
         from_date: ``YYYY-MM-DD``. For ``custom``: the first observed date
-            (iNaturalist) or liked date (Spotify; the month, for the legacy
-            gateway) to include.
+            (iNaturalist) or liked date (Spotify) to include.
         to_date: ``YYYY-MM-DD``. For ``custom``: the last one to include.
     """
     try:
@@ -202,7 +199,7 @@ async def get_recent_gateway_items(
 
     Args:
         block_type: The CMS document type for this gateway, e.g.
-            ``spotify_liked_dump`` or ``inaturalist_outing``.
+            ``spotify_like`` or ``inat_observation``.
         limit: Maximum number of documents to return, 1-50. Default 10.
     """
     if not 1 <= limit <= MAX_LIST_LIMIT:

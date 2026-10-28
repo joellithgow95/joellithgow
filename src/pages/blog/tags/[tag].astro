@@ -107,8 +107,6 @@ const pageDescription = `All blog posts tagged with ${tag}.`;
               const count =
                 post.kind === 'post' && sliceCount.has(post.slug) ? sliceCount.get(post.slug)
                 : post.kind === 'post' && (post as any).links?.length ? `${(post as any).links.length} links`
-                : post.kind === 'spotify_dump' ? `${(post as any).song_count || 0} tracks`
-                : post.kind === 'nature_outing' ? `${(post as any).observation_count || 0} obs`
                 : null;
               return (
                 <article class="log-item">

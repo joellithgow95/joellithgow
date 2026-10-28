@@ -122,29 +122,6 @@ def register_documents(cms: CMS) -> None:
         show_on_resume: bool = BoolField(default=True)
         order: float | None = NumberField(precision=0)
 
-    @cms.document("spotify_liked_dump")
-    class SpotifyLikedDumpDocument:
-        title: str = TextField(required=True, max_length=500)           # "Liked songs — June 2025 (23 tracks)"
-        description: str = TextField(max_length=1000)
-        publish_date: str = TextField(required=True)                    # ISO 8601: first day of the liked month
-        song_count: float = NumberField(precision=0)
-        songs: list | None = JSONField()                                # [{track_name, artist_name, album_name, spotify_url, liked_at}]
-        tags: list | None = TagsField()
-
-    @cms.document("inaturalist_outing")
-    class INaturalistOutingDocument:
-        title: str = TextField(required=True, max_length=500)           # seeded from the place name; editable
-        description: str = TextField(max_length=1000)
-        publish_date: str = TextField(required=True)                    # ISO 8601 outing date
-        outing_date: str = TextField(required=True)                     # same as publish_date, explicit
-        place_guess: str = TextField(max_length=500)
-        observation_count: float = NumberField(precision=0)
-        species_list: list | None = JSONField()                         # [str] unique common names
-        observations: list | None = JSONField()                         # slim records, see gateways/inaturalist_field_trips.curate_observation
-        photo_urls: list | None = JSONField()
-        bounding_box: dict | None = JSONField()                         # {lat_min, lat_max, lon_min, lon_max}
-        tags: list | None = TagsField()
-
     # ── Data (ADR 026 in astraeus) ────────────────────────────────────────────
     # One document per collected item, written by a gateway and published so the
     # static build can read it, but with no page or feed card of its own: a post

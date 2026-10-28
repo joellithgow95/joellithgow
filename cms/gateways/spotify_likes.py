@@ -3,9 +3,7 @@ Spotify likes gateway — one ``spotify_like`` data document per liked song.
 
 ADR 026 (astraeus): collected data is stored one item per document, with no
 grouping of its own. A post picks the songs it is about (a month, an album, three
-tracks) through a slice; the gateway only keeps the records current. This
-replaces the month-shaped ``spotify_liked_dump`` gateway, which stays registered
-until the migration converts its posts.
+tracks) through a slice; the gateway only keeps the records current.
 
 Every body field is the gateway's (``owned_fields`` lists them all), so a re-sync
 that sees a change overwrites the whole record, and a draft on a like is never
@@ -21,25 +19,55 @@ Liked tracks come back newest first, so a run stops paging at the first track
 older than its window. A song you un-like keeps its document: no sync deletes
 one, and the saved-tracks list says nothing about removals.
 
-Environment variables: the same as ``spotify_liked_dump`` (``SPOTIPY_CLIENT_ID``,
-``SPOTIPY_CLIENT_SECRET``, ``SPOTIPY_REFRESH_TOKEN``).
+Environment variables: ``SPOTIPY_CLIENT_ID``, ``SPOTIPY_CLIENT_SECRET`` and
+``SPOTIPY_REFRESH_TOKEN`` (get one with ``cms/gateways/get_spotify_token.py``).
 """
 
 from __future__ import annotations
 
 import asyncio
+import os
 from collections.abc import AsyncIterator
 from datetime import UTC, date, datetime
 from typing import Any
 
 import spotipy
+from spotipy.oauth2 import SpotifyOAuth
 from starlette_cms_gateways import BaseGateway, GatewayItem, SyncWindow
 
-from .spotify_liked_dump import MONTH_FLOOR, spotify_client_from_env
+_SCOPE = "user-library-read"
 
-# The site only wants likes from 2025 on (the same floor as the monthly gateway).
-LIKED_FLOOR = date.fromisoformat(f"{MONTH_FLOOR}-01")
+# The site only wants likes from 2025 on.
+LIKED_FLOOR = date(2025, 1, 1)
 _PAGE_SIZE = 50
+
+
+def spotify_client_from_env() -> spotipy.Spotify:
+    """A Spotify client authorised from the ``SPOTIPY_*`` environment variables."""
+    client_id = os.environ["SPOTIPY_CLIENT_ID"]
+    client_secret = os.environ["SPOTIPY_CLIENT_SECRET"]
+    refresh_token = os.environ.get("SPOTIPY_REFRESH_TOKEN")
+
+    if refresh_token:
+        # Use a pre-obtained refresh token — no browser / redirect needed.
+        auth_manager = SpotifyOAuth(
+            scope=_SCOPE,
+            client_id=client_id,
+            client_secret=client_secret,
+            redirect_uri="http://localhost:8888/callback",  # not called
+        )
+        token_info = auth_manager.refresh_access_token(refresh_token)
+        return spotipy.Spotify(auth=token_info["access_token"])
+    # Fall back to interactive OAuth dance (requires SPOTIPY_REDIRECT_URI).
+    return spotipy.Spotify(
+        auth_manager=SpotifyOAuth(
+            scope=_SCOPE,
+            client_id=client_id,
+            client_secret=client_secret,
+            redirect_uri=os.environ["SPOTIPY_REDIRECT_URI"],
+        )
+    )
+
 
 # Every field of a spotify_like body; all of them belong to the gateway.
 LIKE_FIELDS = (

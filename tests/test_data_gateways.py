@@ -117,7 +117,6 @@ async def test_first_likes_sync_creates_one_published_doc_per_song_above_the_flo
     assert s1["body"]["liked_at"] == "2026-09-02T10:00:00Z"
     publishes = [p for m, p in transport.writes() if p.endswith("/publish")]
     assert publishes == [f"/api/changesets/{result.changeset_id}/publish"], "one run, one build"
-    assert await docs_of(client, "spotify_liked_dump") == {}, "no month posts"
 
 
 @pytest.mark.asyncio
@@ -229,7 +228,6 @@ async def test_first_observations_sync_creates_one_published_doc_per_sighting(en
     assert docs["inaturalist:observation:3"]["body"].get("lat") is None
     publishes = [p for m, p in transport.writes() if p.endswith("/publish")]
     assert publishes == [f"/api/changesets/{result.changeset_id}/publish"]
-    assert await docs_of(client, "inaturalist_outing") == {}, "no outing posts"
 
 
 @pytest.mark.asyncio

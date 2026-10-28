@@ -140,82 +140,37 @@ jlithgow-ops (see *Where prod runs*). The `mcp-deploy` / `caddy-deploy` targets 
 ## Gateways (Spotify + iNaturalist sync)
 
 The gateways are `starlette-cms-gateways` subclasses in `cms/gateways/`, run through the `sync_gateway` MCP tool
-(hermes, the Claude app), the admin page (`/gateways`) or `gateways sync`. There are two pairs while the content
-model moves to data documents (astraeus ADR 026):
+(hermes, the Claude app), the admin page (`/gateways`) or `gateways sync`. Both make data documents (astraeus ADR 026):
 
-- **Data gateways (new): `spotify-likes` and `inaturalist-observations`.** One small document per song
-  (`spotify_like`, ref `spotify:like:<track id>`) and per sighting (`inat_observation`, ref
-  `inaturalist:observation:<id>`), filed under **Data** in the editor. Published, with no page or feed card of their
-  own: a post shows them through a slice in its `data` field (see *Content collections*), and `/blog/music` and
-  `/blog/nature` browse them by month and by day.
-  Every field is the gateway's, so a re-sync overwrites the record (the `title` is a label built from the data,
-  not for hand edits). No clustering: which sightings make an outing is a post's choice. Ranges as below, except
-  Spotify's `custom` is liked *dates* and the floor is 2025-01-01. A song you un-like or a deleted observation keeps
-  its document. Their own cursors: the first run of each is `all_time` (about 1,000 songs, one publish).
+- **`spotify-likes` and `inaturalist-observations`.** One small document per song (`spotify_like`, ref
+  `spotify:like:<track id>`) and per sighting (`inat_observation`, ref `inaturalist:observation:<id>`), filed under
+  **Data** in the editor. Published, with no page or feed card of their own: a post shows them through a slice in its
+  `data` field (see *Content collections*), and `/blog/music` and `/blog/nature` browse them by month and by day.
+  Every field is the gateway's, so a re-sync overwrites the record (the `title` is a label built from the data, not
+  for hand edits), and a re-sync that finds nothing new writes nothing. No clustering: which sightings make an outing
+  is a post's choice. Stored observations are slim records (`curate_observation`), not iNaturalist's raw payload.
+- **Daily sync.** The `gateways-daily` CronJob in jlithgow-ops runs both with `since_last_sync` at 04:00 Pacific.
 - **Monthly music post.** `uv run python -m cms.compose_music_month` (dry run; `--api-key … --apply` to write)
   makes last month's "What I've been listening to — <month>" as a **draft** `blog_post` in Staging, slug
   `spotify-dump-YYYY-MM`, holding only a `music_range` slice. Import ref `music:month:YYYY-MM`, so a month that
-  has a post already, or has no likes, gets nothing. The `music-month` CronJob in jlithgow-ops syncs
-  `spotify-likes` and then runs it on the 1st. It never publishes.
-- **Legacy post gateways: `spotify-liked-dump` and `inaturalist-field-trips`.** No longer registered (their entry
-  points are gone from `pyproject.toml`). `cms/migrate_to_slices.py` turns their 22 months and 31 outings into
-  blog posts on the same slugs (a month: `music_range`; an outing: `nature_picks` of its own observations) and
-  stages the old documents' deletion in the same changeset, so one publish swaps them in one build. Read its
-  docstring: `report` → `apply --allow-prod` → Joel publishes the changeset → `verify`. Everything below
-  describes the legacy two, and goes once their code is removed.
-
-They are configured per gateway, not hard-coded:
-
-- **One post per outing / month.** iNat: same observed date and observations within **3 km** of each other
-  (chained, so a trail is one outing; `DEFAULT_RADIUS_M = 3000`, override with `INATURALIST_OUTING_RADIUS_M`) is one
-  outing, so two places in a day are two posts. On the real data only 2026-07-04 (Oakland, then Albany) splits; at
-  1 km the 05-25 and 09-05 hikes split wrongly too. Everything that clusters (gateway, migration, report) reads
-  `outing_radius_m()`. The first outing of a day keeps `inaturalist:outing:YYYY-MM-DD` / `nature-outing-YYYY-MM-DD`;
-  later ones get `:2`, `-2`, and an outing keeps its document when observations are added (matched by observation
-  id, not by order). Spotify: `spotify:dump:YYYY-MM`. `publish_date` is the observed date / the 1st of the month; the
-  site sorts by it.
-- **Owned vs. seeded fields.** `owned_fields` are machine-sourced and refreshed: iNat count, species, observations,
-  photo URLs, bounding box **and `tags`** (so adding a bird to an outing later adds `birds`; a hand edit to an
-  outing's tags is overwritten, an accepted trade-off); Spotify songs and song_count. Title, place and publish date
-  (and Spotify's `tags`) are written once at creation, then belong to the editor. Only owned fields are hashed and
-  written on update, so a re-sync that finds nothing new writes nothing and a hand edit to anything else is never
-  overwritten. Stored iNat observations are slim records (`curate_observation`), not iNaturalist's raw payload, and
-  carry no `quality_grade` (community IDs change it, which would republish a post for nothing the site shows).
+  has a post already, or has no likes, gets nothing. The `music-month` CronJob in jlithgow-ops runs it at 09:00 on
+  the 1st, after the daily sync has collected the month. It never syncs and never publishes.
 - **A run is one changeset, published once at the end**: one `changeset.published` webhook, so one site build however
-  many posts changed, and all or nothing (a quiet sync opens no changeset and starts no build). If the publish fails the
-  run raises (the job is an error) and the cursor stays, so the next run finishes the posts. A post a person has a
-  draft on, or one you unpublished, is left alone and named in the sync reply (the code calls it *deferred*). Nothing
-  remembers it: an incremental run meets it again only if the source changes, so once they publish or discard the
-  draft run `all_time` to catch it up. The gateway's own leftover draft (from a failed publish) is finished, not
-  left alone, the next time a run meets the doc. See ADR 023 in astraeus.
+  many documents changed, and all or nothing (a quiet sync opens no changeset and starts no build). If the publish
+  fails the run raises (the job is an error) and the cursor stays, so the next run finishes. A document a person has a
+  draft on, or one you unpublished, is left alone and named in the sync reply (*deferred*); run `all_time` once the
+  draft is resolved to catch it up. See ADR 023 in astraeus.
 - **Ranges and the cursor.** `since_last_sync` (default), `all_time` (first run / repair), `custom`
-  (`from_date`..`to_date`, the observed date or liked month). The cursor and job history live **in the
-  CMS's own database** (`content.db`, so Litestream carries them to R2); the MCP sidecar and `gateways sync` read and
-  write them through the CMS gateway API (`/api/gateways/{name}/cursor|runs`), so the admin page, the MCP tool
-  and the CLI share one cursor and it survives restarts. It moves to the run's start after any run that did not
-  raise (never after `custom`); items left alone or failed never hold it back. The sidecar needs no volume and no
-  `GATEWAY_JOBS_DB`.
-- **Spotify floor.** `MONTH_FLOOR = "2025-01"`: `all_time` and `since_last_sync` never touch an earlier month. The 31
-  pre-2025 monthly posts are deleted by the migration below. A `custom` range ignores the floor on purpose, so a
-  backfill of older months re-creates them as new *published* posts.
-- **Deletions.** An incremental run cannot see an unliked song or a deleted observation; only `all_time` can, and
-  no sync ever deletes a document. A song you un-like drops out the next time its month is refreshed.
-- **Check the clustering radius on real data:** `uv run python -m cms.inat_outing_report --only-differing`.
-- **One-off migration of existing docs** (`cms/migrate_gateway_docs.py`; read its docstring): `report` (read-only:
-  pending drafts told apart as gateway-only vs a person's, the pre-floor Spotify months, what an `all_time` sync would
-  create and update, the stale open changesets old runs left) → `apply` (discards gateway-only drafts; with
-  `--delete-pre-floor --snapshot-confirmed` also deletes the pre-floor months; then cleans the stale changesets:
-  deletes those holding only gateway docs, trims gateway docs out of mixed ones, leaves any holding a person's draft
-  and any `review`/`scheduled` one; `--allow-prod` against prod. Re-run it once a person has resolved their draft) → one
-  `PYTHONPATH=. uv run gateways sync <name> --range all_time` per gateway (or the `sync_gateway` MCP tool) → `verify` (no drafts, no leftover open changeset, no stray `draft` key or raw payload,
-  slugs and publish_dates unchanged except on 07-04, and a second `all_time` sync writes nothing). Develop against a
-  local `litestream restore` of prod (credentials in jlithgow-ops `litestream-secrets.enc.yaml`), never prod first,
-  and show Joel the report before anything is written. Titles are seeded, so check the 07-04 posts' titles by hand:
-  the document that kept the old ref keeps its old title even if its cluster is the Albany one. Publishing rebuilds the
-  site through the Netlify webhook (see *Rebuilding the site*), so there is no Rebuild to press afterwards. Each gateway's
-  sync is one publish (one build), but each deleted pre-floor month fires its own `document.deleted` (one build each):
-  the report's section 5 counts them. The CMS can't pause a webhook (only create/delete) and doesn't coalesce, so
-  decide beforehand whether to accept those builds or delete the hook for the `apply` and re-create it.
+  (`from_date`..`to_date`: the observed date, or the liked date for Spotify). Spotify's floor is `LIKED_FLOOR`
+  (2025-01-01). The cursor and job history live **in the CMS's own database** (`content.db`, so Litestream carries
+  them to R2); the MCP sidecar and `gateways sync` read and write them through the CMS gateway API
+  (`/api/gateways/{name}/cursor|runs`), so the admin page, the MCP tool, the CLI and the CronJob share one cursor. It
+  moves to the run's start after any run that did not raise (never after `custom`).
+- **Deletions.** An incremental run cannot see an unliked song or a deleted observation, and no sync ever deletes a
+  document: a song you un-like or a deleted observation keeps its document.
+- **History.** The month and outing posts (`spotify-dump-YYYY-MM`, `nature-outing-YYYY-MM-DD`) were once their own
+  document types made by two older gateways; on 2026-10-28 they became ordinary `blog_post`s with slices on the same
+  slugs, and that code is gone.
 
 ## Environment
 
@@ -261,8 +216,6 @@ src/content/config.ts           # collection definitions + Zod schemas
 | `blog` | `blog_post` | Every post (one type: articles, short thoughts, link lists) |
 | `projects` | `project_page` | Case studies |
 | `experience` | `experience_entry` | Work history |
-| `spotifyDumps` | `spotify_liked_dump` | Gateway-sourced (legacy month posts) |
-| `inaturalistOutings` | `inaturalist_outing` | Gateway-sourced (legacy outing posts) |
 | `spotify_likes`, `inat_observations`, `links` | `spotify_like`, `inat_observation`, `link` | Data docs (ADR 026), keyed by document id. Shown only through posts' slices and the music/nature pages |
 | `definitions` | `definition` | Glossary terms; routes under `/blog/dictionary/`. CMS-only, not seeded from local files |
 | `applications` | Local MDX | Not in CMS — intentional |
@@ -272,7 +225,7 @@ src/content/config.ts           # collection definitions + Zod schemas
 **`cms/schema.py` is the source of truth for field names and types.** `src/lib/astraeus-types.ts` and `src/content/config.ts` mirror it by hand, so check `schema.py` first if they disagree. For voice, how a post shows on the feed and tag habits, see `docs/blog-conventions.md`.
 
 - CMS fields are `snake_case` (`publish_date`, `reading_time`). The legacy markdown files in `src/content/blog/` are seed sources with `camelCase` frontmatter (`publishDate`, `readingTime`); their `type` and `hasDetailPage` are no longer read. The site reads from the CMS, not from those files.
-- A definition is **not** a blog post: it has `term`, `definition`, `personal_notes`, `sources`, `tags` and no `kind` of its own. The site tags each feed item with a synthetic `kind` (`post`, `spotify_dump`, `nature_outing`, `definition`) when it merges them into blog feeds (`src/lib/astraeus.ts`). `blog_post` has no type field: every post has a detail page, and the feed card shows the excerpt, or the whole body when it is short (see `docs/blog-conventions.md`).
+- A definition is **not** a blog post: it has `term`, `definition`, `personal_notes`, `sources`, `tags` and no `kind` of its own. The site tags each feed item with a synthetic `kind` (`post`, `definition`) when it merges them into blog feeds (`src/lib/astraeus.ts`). `blog_post` has no type field: every post has a detail page, and the feed card shows the excerpt, or the whole body when it is short (see `docs/blog-conventions.md`).
 - **Slices.** `blog_post.data` is a list of slice blocks (`cms/slices.py`): `music_range`, `nature_range`,
   `music_picks`, `nature_picks`, `definition_picks`, `link_picks`, `links_by_tag`. Each is an instruction, not a copy:
   `src/lib/slices.ts` resolves it against the published data docs at build time and skips a picked id that is not
@@ -283,7 +236,7 @@ src/content/config.ts           # collection definitions + Zod schemas
 ## Gotchas
 
 - The `gateways` console script cannot import `cms` on its own (the repo root is not on its path): run it as
-  `PYTHONPATH=. uv run gateways ...`, from the repo root. `python -m` entry points (`cms.mcp_server`, `cms.migrate_gateway_docs`) are fine.
+  `PYTHONPATH=. uv run gateways ...`, from the repo root. `python -m` entry points (`cms.mcp_server`, `cms.compose_music_month`) are fine.
 - The Docker **image** no longer needs a sibling astraeus checkout — the multi-stage Dockerfile clones astraeus (pinned by `ASTRAEUS_REF`) at build time. **Local dev** (`docker-compose.local.yml`) still bind-mounts `../astraeus/`, so the sibling checkout is still required for `make dev`.
 - `bun run dev` hangs if the CMS is unreachable — always run `make cms-up` or `make dev` instead of bare `bun run dev`.
 - The content loader returns `[]` silently if `ASTRAEUS_API_KEY` is unset — useful for skipping CMS during pure frontend work.

@@ -1,7 +1,7 @@
 ---
 import { marked } from 'marked';
 import { fetchBlogPosts } from '@lib/astraeus';
-import type { AstraeusDocument, BlogPost, SpotifyDump, NatureOuting } from '@lib/astraeus-types';
+import type { AstraeusDocument, BlogPost } from '@lib/astraeus-types';
 import type { AnyBlogPost } from '@lib/astraeus';
 import BaseLayout from '@components/common/BaseLayout.astro';
 import ThemeModal from '@components/modals/ThemeModal.astro';
@@ -42,10 +42,6 @@ const links = ('links' in post && (post as any).links) as AstraeusDocument<BlogP
 const publishDate = new Date(publish_date);
 // The data this post shows (ADR 026 slices), resolved at build time
 const slices = kind === 'post' ? await resolveSlices((post as any).data) : [];
-
-// Typed views for new post types (cast once in frontmatter, not in template)
-const spotifyDump = kind === 'spotify_dump' ? (post as AstraeusDocument<SpotifyDump> & { kind: 'spotify_dump' }) : null;
-const natureOuting = kind === 'nature_outing' ? (post as AstraeusDocument<NatureOuting> & { kind: 'nature_outing' }) : null;
 
 // JSON-LD structured data for BlogPosting
 const jsonLd = {
@@ -129,122 +125,7 @@ const breadcrumbSchema = {
           <Button href="/blog" variant="secondary" size="md" class="nav-back-btn">← Back to blog</Button>
         </nav>
 
-        {/* SPOTIFY DUMP LAYOUT — inside the same .blog-article card as regular posts */}
-        {spotifyDump && (
-          <article class="blog-article">
-            <header class="article-header">
-              <div class="article-meta-top">
-                <time datetime={new Date(spotifyDump.publish_date).toISOString()} class="article-date">
-                  {new Date(spotifyDump.publish_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
-                </time>
-              </div>
-              <h1 class="article-title" data-cms-field="title">🎵 {spotifyDump.title}</h1>
-              {spotifyDump.description && <p class="article-description" data-cms-field="description">{spotifyDump.description}</p>}
-              <div class="article-meta">
-                <div class="author-info">
-                  <span>{spotifyDump.song_count ?? spotifyDump.songs?.length ?? 0} tracks</span>
-                </div>
-                {tags && tags.length > 0 && (
-                  <div class="article-tags" data-cms-field="tags">
-                    {tags.map((tag) => (
-                      <Badge href={`/blog/tags/${tag}`} size="sm">#{tag}</Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </header>
-
-            {spotifyDump.songs && spotifyDump.songs.length > 0 && (
-              <div class="article-content">
-                <div class="spotify-song-list">
-                  {spotifyDump.songs.map((song) => (
-                    <div class="spotify-song-item">
-                      <div class="song-info">
-                        <a href={song.spotify_url} class="song-title" target="_blank" rel="noopener noreferrer">
-                          {song.track_name}
-                        </a>
-                        <span class="song-artist">{song.artist_name}</span>
-                        {song.album_name && <span class="song-album">{song.album_name}</span>}
-                      </div>
-                      <time class="song-liked-at" datetime={song.liked_at}>
-                        {new Date(song.liked_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </time>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </article>
-        )}
-
-        {/* INATURALIST OUTING LAYOUT — inside the same .blog-article card as regular posts */}
-        {natureOuting && (
-          <article class="blog-article">
-            <header class="article-header">
-              <div class="article-meta-top">
-                <time datetime={new Date(natureOuting.publish_date).toISOString()} class="article-date">
-                  {new Date(natureOuting.publish_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                </time>
-              </div>
-              <h1 class="article-title" data-cms-field="title">🌿 {natureOuting.title}</h1>
-              {natureOuting.description && <p class="article-description" data-cms-field="description">{natureOuting.description}</p>}
-              <div class="article-meta">
-                <div class="author-info">
-                  <span>{natureOuting.observation_count ?? natureOuting.observations?.length ?? 0} observations</span>
-                  {natureOuting.species_list && <span> · {natureOuting.species_list.length} species</span>}
-                  {natureOuting.place_guess && <span> · 📍 {natureOuting.place_guess}</span>}
-                </div>
-                {tags && tags.length > 0 && (
-                  <div class="article-tags" data-cms-field="tags">
-                    {tags.map((tag) => (
-                      <Badge href={`/blog/tags/${tag}`} size="sm">#{tag}</Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </header>
-
-            <div class="article-content">
-              {natureOuting.photo_urls && natureOuting.photo_urls.length > 0 && (
-                <section class="nature-photos-section">
-                  <h2>Photos</h2>
-                  <div class="nature-photo-grid">
-                    {natureOuting.photo_urls.slice(0, 12).map((url) => (
-                      <a href={url} target="_blank" rel="noopener noreferrer" class="nature-photo-link">
-                        <img src={url.replace('original', 'medium')} alt="Observation photo" loading="lazy" class="nature-photo" />
-                      </a>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {natureOuting.species_list && natureOuting.species_list.length > 0 && (
-                <section>
-                  <h2>Species ({natureOuting.species_list.length})</h2>
-                  <ul class="species-list">
-                    {natureOuting.species_list.map((name) => (
-                      <li class="species-item">{name}</li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-
-              {natureOuting.bounding_box && (
-                <section>
-                  <h2>Location</h2>
-                  <p class="bounding-box-info">
-                    Lat {natureOuting.bounding_box.lat_min.toFixed(4)}–{natureOuting.bounding_box.lat_max.toFixed(4)},
-                    Lon {natureOuting.bounding_box.lon_min.toFixed(4)}–{natureOuting.bounding_box.lon_max.toFixed(4)}
-                  </p>
-                </section>
-              )}
-            </div>
-          </article>
-        )}
-
         {/* REGULAR ARTICLE LAYOUT */}
-        {/* spotifyDump and natureOuting render their own layouts above — skip entirely for those */}
-        {!spotifyDump && !natureOuting && (
           <article class="blog-article">
             {/* Hero-style header with featured image/video */}
             {image && (
@@ -325,7 +206,6 @@ const breadcrumbSchema = {
               </section>
             )}
           </article>
-        )}
       </div>
 
         <footer class="article-footer">
@@ -1163,153 +1043,6 @@ const breadcrumbSchema = {
       font-size: var(--heading-md);
     }
 
-  }
-
-  /* ─── Spotify dump ────────────────────────────────────────────────────── */
-  .spotify-song-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    border: var(--border-width) solid var(--gradient-primary-subtle);
-    border-radius: var(--border-radius);
-    overflow: hidden;
-  }
-
-  .spotify-song-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-lg);
-    padding: var(--space-md) var(--space-xl);
-    border-bottom: var(--border-width) solid var(--gradient-primary-subtle);
-    transition: background var(--duration-base) var(--ease-out);
-  }
-
-  .spotify-song-item:last-child {
-    border-bottom: none;
-  }
-
-  .spotify-song-item:hover {
-    background: var(--gradient-primary-light);
-  }
-
-  .song-info {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2xs);
-    min-width: 0;
-  }
-
-  .song-title {
-    font-weight: var(--font-semibold);
-    color: var(--accent-primary);
-    text-decoration: none;
-    font-size: var(--text-base);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    transition: color var(--duration-base) var(--ease-out);
-  }
-
-  .song-title:hover {
-    text-decoration: underline;
-  }
-
-  .song-artist {
-    font-size: var(--text-sm);
-    color: var(--text-primary);
-  }
-
-  .song-album {
-    font-size: var(--text-xs);
-    color: var(--text-secondary);
-  }
-
-  .song-liked-at {
-    font-size: var(--text-xs);
-    color: var(--text-secondary);
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  /* ─── iNaturalist outing ───────────────────────────────────────────────── */
-  .nature-photos-section {
-    margin-bottom: var(--space-3xl);
-  }
-
-  .nature-photo-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: var(--space-md);
-    margin-top: var(--space-xl);
-  }
-
-  .nature-photo-link {
-    display: block;
-    border-radius: var(--border-radius);
-    overflow: hidden;
-    border: var(--border-width) solid var(--gradient-primary-subtle);
-    transition: all var(--duration-base) var(--ease-out);
-  }
-
-  .nature-photo-link:hover {
-    border-color: var(--accent-primary);
-    box-shadow: var(--shadow-md) var(--accent-secondary);
-  }
-
-  .nature-photo {
-    width: 100%;
-    height: 180px;
-    object-fit: cover;
-    display: block;
-    transition: transform var(--duration-base) var(--ease-out);
-  }
-
-  .nature-photo-link:hover .nature-photo {
-    transform: scale(1.05);
-  }
-
-  /* Override the broad article-content :global(img) rules for photos in the grid */
-  .article-content :global(.nature-photo-link img) {
-    margin: 0;
-    border: none;
-    border-radius: 0;
-    box-shadow: none;
-    transform: none;
-  }
-
-  .article-content :global(.nature-photo-link:hover img) {
-    transform: scale(1.05);
-    box-shadow: none;
-  }
-
-  .species-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-sm);
-    list-style: none;
-    padding: 0;
-    margin: var(--space-xl) 0 0;
-  }
-
-  .species-item {
-    background: var(--gradient-primary-light);
-    color: var(--text-primary);
-    padding: var(--space-xs) var(--space-md);
-    border-radius: var(--radius-full);
-    border: var(--border-width) solid var(--accent-primary);
-    font-size: var(--text-sm);
-  }
-
-  .bounding-box-info {
-    font-family: monospace;
-    font-size: var(--text-sm);
-    color: var(--text-secondary);
-    background: var(--bg-secondary);
-    padding: var(--space-md) var(--space-xl);
-    border-radius: var(--border-radius);
-    border: var(--border-width) solid var(--gradient-primary-subtle);
-    margin-top: var(--space-xl);
   }
 
   /* Reduced motion support */
