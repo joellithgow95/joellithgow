@@ -15,7 +15,7 @@ import Video from '@components/ui/Video.astro';
 import ImageGallery from '@components/modals/ImageGallery.astro';
 import AlbumMosaic from '@components/blog/AlbumMosaic.astro';
 import PostSlices from '@components/blog/slices/PostSlices.astro';
-import { resolveSlices } from '@lib/slices';
+import { loadDataPool, resolveSlices } from '@lib/slices';
 
 export const getStaticPaths = (async () => {
   const posts = await fetchBlogPosts();
@@ -96,9 +96,8 @@ const slicesBySlug = new Map(
   ),
 );
 
-// Total link count (blog posts only — new types have no links); feeds the sidebar "Links" card
-const linkCollectionPosts = allPosts.filter(post => post.kind === 'post' && post.links && post.links.length > 0);
-const totalLinks = linkCollectionPosts.reduce((sum, post) => sum + (('links' in post && (post as any).links?.length) || 0), 0);
+// Published link documents; feeds the sidebar "Links" card
+const totalLinks = (await loadDataPool()).links.length;
 
 // Document-type counts for the "Browse" sidebar cards. Music and Birds count
 // the posts that show songs or observations through a slice.

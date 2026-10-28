@@ -157,7 +157,7 @@ def register_documents(cms: CMS) -> None:
         photo_urls: list | None = JSONField()                           # [str]
         tags: list | None = TagsField()                                 # taxon group, e.g. ["birds"]
 
-    @cms.document("link")
+    @cms.document("link", label="Bookmarks")
     class LinkDocument:
         # One external link, stored once and shown through posts' link slices
         # (links_by_tag, link_picks). Tags group links into lists, e.g.

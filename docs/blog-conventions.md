@@ -4,14 +4,17 @@ How content on joellithgow.com is shaped. For field names and types, `cms/schema
 
 ## Which document type?
 
-| You're writing... | Use | Notes |
-|---|---|---|
-| An opinion, devlog, explainer, short thought or list of links | `blog_post` | One kind of post; see below |
-| A term with a definition, plus your take on it | `definition` | Not a blog post. Lives under `/blog/dictionary/` |
-| A case study | `project_page` | |
-| A job on the resume | `experience_entry` | |
+Content is either a **post** (something Joel writes) or **data** (a record a post can show). Posts have pages and feed cards; data has neither, and reaches the site through a post's slices.
 
-Spotify dumps and iNaturalist outings are created and auto-published by the gateways. Don't write those by hand.
+| You're adding... | Use | Kind | Notes |
+|---|---|---|---|
+| An opinion, devlog, explainer, short thought or list of links | `blog_post` | post | The only post type; see below |
+| A term and what it means | `definition` | data | Keeps its own page under `/blog/dictionary/`; see *Definitions* |
+| A link worth keeping (a blog, a tool, an article) | `link` | data | Stored once; posts show it with `link_picks` or `links_by_tag` |
+| A case study | `project_page` | | |
+| A job on the resume | `experience_entry` | | |
+
+`spotify_like` and `inat_observation` are data too, but only the gateways write them (filed under **Data** in the editor). Don't create or edit those by hand: a re-sync overwrites every field. See *Collected data* below.
 
 ## `blog_post`
 
@@ -19,16 +22,51 @@ There is one kind of post. What it looks like follows from what it holds:
 
 - Every post has its own page at `/blog/<slug>`.
 - On the feed, a post with an `excerpt` shows the excerpt. Without one, a short body (up to about 800 characters of Markdown) shows in full, and a longer one is cut off with "Continue reading". So a short thought needs no excerpt, and a long piece should have one.
-- A list of links goes in the `links` field (a list of link items). They render under the body on the post's page, and the feed card shows a "N links" badge. Items also show on `/blog/links` and the tag pages.
-- **Data a post shows goes in `data`, as slices** (`cms/slices.py`). A slice says which songs, observations, definitions or links to show; the site looks them up when it builds and draws them under the body (a compact version on the feed card). Kinds: `music_range` / `nature_range` (`{from_date, to_date}`, YYYY-MM-DD, both included), `music_picks` / `nature_picks` / `definition_picks` / `link_picks` (`{refs: [document ids]}`, shown in that order) and `links_by_tag` (`{tag}`, every `link` document with that tag). The CMS refuses a bad slice on save. A month of music is one `music_range`; "the birds from this trip" is a `nature_picks`.
+- **Data a post shows goes in `data`, as slices** (`cms/slices.py`). A slice says which songs, observations, definitions or links to show; the site looks them up when it builds and draws them under the body (a compact version on the feed card). Kinds: `music_range` / `nature_range` (`{from_date, to_date}`, YYYY-MM-DD, both included), `music_picks` / `nature_picks` / `definition_picks` / `link_picks` (`{refs: [document ids]}`, shown in that order) and `links_by_tag` (`{tag}`, every `link` document with that tag). The CMS refuses a bad slice on save. A month of music is one `music_range`; "the birds from this trip" is a `nature_picks`; a reading list is a `links_by_tag`.
+- A slice is a pointer, not a copy: a range picks up songs synced after the post was written, and an edit to a definition or link shows in every post that picks it.
+- The `links` field (a list of `{url, title, description, date_added}` written into the post) is the older way to make a list of links. It still renders under the body, on `/blog/links` and the tag pages. New lists should be `link` documents shown through a slice instead; moving the existing embedded links over is in progress (see *In progress*).
 
-Older posts still carry `post_type` and `has_detail_page` from before this change. The CMS drops both the next time the post is saved; don't set them.
+`post_type` and `has_detail_page` are gone. The CMS drops them if an old post still carries them the next time it is saved; don't set them.
 
-## `definition` structure
+## Collected data
 
-- `definition`: the factual definition, in markdown. Keep it neutral.
-- `personal_notes`: your take, context, predictions, in markdown. This is where first-person opinion goes.
-- `sources`: a list mixing `link` and `citation` entries. Leave it empty rather than inventing a source.
+- **Songs and observations.** The `spotify-likes` and `inaturalist-observations` gateways write one document per liked song and per sighting, published, with no page or card of their own. The `gateways-daily` CronJob (jlithgow-ops) syncs both every morning at 04:00 Pacific; `sync_gateway` (gateway MCP) or the `/gateways` admin page runs one by hand. `/blog/music` and `/blog/nature` browse all of it by month and by day.
+- **The monthly music post.** At 09:00 Pacific on the 1st, the `music-month` CronJob runs `cms.compose_music_month`, which makes last month's "What I've been listening to — <month>" as a **draft** `blog_post` in Staging, holding one `music_range`. It never syncs and never publishes: open it, add words if you like, and publish Staging.
+- **Outings are a post's choice.** No gateway groups sightings into outings any more. To write about a trip, make a `blog_post` with a `nature_picks` (the sightings you want) or a `nature_range` (every sighting in those days).
+- The old `spotify_liked_dump` months and `inaturalist_outing` posts were converted to ordinary `blog_post`s with slices on the same slugs (`spotify-dump-YYYY-MM`, `nature-outing-YYYY-MM-DD`), and those types and their gateways are gone.
+
+## Definitions
+
+A definition is dictionary data: the term, what it means, and where that comes from. Joel's context, stories and opinions about it belong in a post that picks it, not in the definition.
+
+- `term` and `definition`: the factual definition, in Markdown. Keep it neutral.
+- `sources`: a list mixing `{type: "link", ...}` and `{type: "citation", ...}` entries. Every entry needs its `type` or the site build fails. Leave it empty rather than inventing a source.
+- `personal_notes`: leave it empty on new definitions; the take goes in the post. Older definitions still have notes here, and the dictionary page shows them.
+- A new definition gets **no feed card of its own**; it shows on the feed only when a post picks it with `definition_picks`. Its page under `/blog/dictionary/<slug>` stays. (Decided 2026-10-28. The site still gives every definition its own feed card until that change is built; see *In progress*.)
+
+**The usual flow, in a Claude session with the CMS MCP tools:**
+
+1. Joel names the term and gives the description, the references and his note or anecdote.
+2. `create_document` a `definition` with the term, the definition and the sources. No personal notes.
+3. `create_document` a `blog_post` whose body is Joel's note in his words (see *Who writes what*), with a `definition_picks` slice holding the new definition's id, plus a tagline and tags.
+4. Both land in the Staging changeset as drafts. Publish when Joel asks: `publish_changeset` on Staging, or the editor's Publish.
+
+One definition can be picked by many posts, so a later post can pick it again (or pick two near-synonyms side by side) without copying it.
+
+## Links
+
+A `link` document is one URL, stored once, with a `title`, `description`, `date_added` and `tags`. Tags are plain topic tags, and some name a list, for example `developer-blog`, `inspo`, `friends` or `reading`. A post shows links with `link_picks` (these, in this order) or `links_by_tag` (every link with this tag, so the list grows when a new link is tagged). Links sit in the main content list in the editor, not under **Data**.
+
+A thought about one link still puts that link inline in its body (see *Who writes what*); a `link` document is for a link worth listing.
+
+## In progress
+
+These are decided but not finished, so check the code before relying on them:
+
+- **Embedded links to link documents.** Moving the links in posts' `links` fields (mostly the old collection posts) into `link` documents, and those posts onto `links_by_tag` / `link_picks` slices.
+- **Editor pickers.** Choosing songs, observations, definitions and links for a slice in the editor without typing document ids. Until then, use the MCP tools (`list_documents` to find ids) or type the ids into the slice.
+- **Definitions off the feed.** Dropping the feed card that every definition gets today, so a definition reaches the feed only through a post (see *Definitions*).
+- **Outing suggestions.** A helper that proposes a draft trip post from new sightings near each other. Not started.
 
 ## Who writes what
 
@@ -36,7 +74,7 @@ Joel writes his posts. He wants very little to no AI-written prose in them, and 
 
 - **Body: his words.** When Joel gives you the text (a "short thought on a link" is the common case), the body is that text. Fix obvious typos and punctuation only. Don't rephrase, expand, add a summary of the source, add a conclusion, or leave `[JOEL: ...]` placeholders. If a word looks like a typo but might be a joke or pun, keep it and ask, or flag it in your reply.
 - **Tagline: the one place an agent writes.** The `description` field is shown in the editor as **Tagline**. It is the short line under the title (and the page meta description and RSS summary). If Joel doesn't give one, write one: short, with a take, in the register of "Is this the formalization of commercial world-view classifier models?" rather than a literal restatement of the post. He may tune this over time.
-- **A thought about one link:** the link goes inline in the body (his text, then "Via [source title](url)"), and `links` stays empty. `links` is for posts that are a list of links: items there also show on `/blog/links` and the tag pages.
+- **A thought about one link:** the link goes inline in the body (his text, then "Via [source title](url)"), with no slice and an empty `links`. A list of links is `link` documents shown through a slice (see *Links*).
 - **Title, excerpt and tags** are small metadata, not prose: keep them plain and factual, reuse existing tags (see *Tags*), and say what you chose so he can change it.
 
 ### When Joel explicitly asks for a drafted piece
@@ -53,7 +91,7 @@ Tags are lowercase and hyphenated. Reuse the existing ones where they fit before
 
 ## Publishing
 
-- Posts are published from the editor UI (the toolbar's Publish ships the open changeset, else "Staging") or with `publish_document`. Gateway syncs auto-publish their own documents.
+- Posts are published from the editor UI (the toolbar's Publish ships the open changeset, else "Staging"), with `publish_changeset`, or one at a time with `publish_document`. Gateway syncs publish their own data documents; the monthly music post is only a draft.
 - New drafts made with `create_document` collect in an open "Staging" changeset; publishing one document on its own takes it out of Staging. See `CLAUDE.md`, *Drafts on the blog index*.
-- Publishing, unpublishing and deleting rebuild the site automatically through a CMS webhook to Netlify (about a minute). The editor's "Rebuild site" button (prod only) is for a rebuild with no content change. Never `publish_document` unless Joel asked you to.
+- Publishing, unpublishing and deleting rebuild the site automatically through a CMS webhook to Netlify (about a minute). The editor's "Rebuild site" button (prod only) is for a rebuild with no content change. Never publish unless Joel asked you to.
 - The body field is stored as ProseMirror JSON, not markdown, despite its name (`body_markdown`). Check the MCP tool's input schema for how it accepts the body before relying on markdown going in.

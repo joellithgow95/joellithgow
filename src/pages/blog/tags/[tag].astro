@@ -9,7 +9,7 @@ import PerformanceOptimizer from '@components/ui/PerformanceOptimizer.astro';
 import Badge from '@components/primitives/Badge.astro';
 import Button from '@components/primitives/Button.astro';
 import LinksAccordion from '@components/blog/LinksAccordion.astro';
-import { resolveSlices } from '@lib/slices';
+import { loadDataPool, resolveSlices } from '@lib/slices';
 import '../../../styles/log.css';
 
 export const getStaticPaths = (async () => {
@@ -21,14 +21,9 @@ export const getStaticPaths = (async () => {
     post.tags?.forEach((tag) => allTags.add(tag));
   });
 
-  // Also get tags from links (blog posts only — new types have no links)
-  allPosts.forEach((post) => {
-    if ('links' in post) {
-      (post as any).links?.forEach((link: any) => {
-        link.tags?.forEach((tag: string) => allTags.add(tag));
-      });
-    }
-  });
+  // Also get tags from link documents
+  const { links: allLinks } = await loadDataPool();
+  allLinks.forEach((link) => link.tags?.forEach((tag) => allTags.add(tag)));
 
   // What a post's slices show, as "N tracks" / "N obs", for its row's count
   const sliceCount = new Map<string, string>();
@@ -37,8 +32,10 @@ export const getStaticPaths = (async () => {
     const resolved = await resolveSlices((post as any).data);
     const songs = resolved.reduce((n, r) => n + (r.kind === 'music' ? r.songs.length : 0), 0);
     const obs = resolved.reduce((n, r) => n + (r.kind === 'nature' ? r.observations.length : 0), 0);
+    const links = resolved.reduce((n, r) => n + (r.kind === 'links' ? r.links.length : 0), 0);
     if (songs) sliceCount.set(post.slug, `${songs} tracks`);
     else if (obs) sliceCount.set(post.slug, `${obs} obs`);
+    else if (links) sliceCount.set(post.slug, `${links} links`);
   }
 
   // Create a path for each tag
@@ -47,24 +44,10 @@ export const getStaticPaths = (async () => {
       .filter((post) => post.tags?.includes(tag))
       .sort((a, b) => new Date(b.publish_date).valueOf() - new Date(a.publish_date).valueOf());
 
-    // Get all links with this tag (blog posts only — new types have no links)
-    const linksWithTag = allPosts
-      .flatMap((post) => {
-        if (!('links' in post) || !(post as any).links) return [];
-        return ((post as any).links as any[])
-          .filter((link: any) => link.tags?.includes(tag))
-          .map((link: any) => ({
-            ...link,
-            dateAdded: new Date(link.date_added),
-            sourcePost: {
-              title: post.title,
-              slug: post.slug,
-              publishDate: new Date(post.publish_date),
-              author: ('author' in post && (post as any).author) || undefined,
-            },
-          }));
-      })
-      .sort((a, b) => new Date(b.date_added).valueOf() - new Date(a.date_added).valueOf());
+    // Link documents with this tag, newest first
+    const linksWithTag = allLinks
+      .filter((link) => link.tags?.includes(tag))
+      .sort((a, b) => b.date_added.localeCompare(a.date_added));
 
     return {
       params: { tag },
