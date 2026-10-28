@@ -1,5 +1,6 @@
 ---
 import { fetchBlogPosts, fetchDefinitions } from '@lib/astraeus';
+import { loadDataPool, resolveSlices } from '@lib/slices';
 import LinksAccordion from '@components/blog/LinksAccordion.astro';
 import BaseLayout from '@components/common/BaseLayout.astro';
 import ThemeModal from '@components/modals/ThemeModal.astro';
@@ -11,13 +12,24 @@ import Badge from '@components/primitives/Badge.astro';
 import Button from '@components/primitives/Button.astro';
 import '../../styles/log.css';
 
-// Get all blog posts that have links
-const allPosts = await fetchBlogPosts();
-const postsWithLinks = allPosts.filter(p => p.links && p.links.length > 0);
+// Every published link document
+const { links: linkDocs } = await loadDataPool();
 
-// Posts with links, for the sidebar
-const collections = postsWithLinks
-  .sort((a, b) => new Date(b.publish_date).valueOf() - new Date(a.publish_date).valueOf());
+// Posts whose slices show links, for the sidebar, with how many each shows
+const allPosts = await fetchBlogPosts();
+const collections = (
+  await Promise.all(
+    allPosts
+      .filter(p => p.kind === 'post')
+      .map(async post => ({
+        post,
+        count: (await resolveSlices((post as any).data))
+          .reduce((n, r) => n + (r.kind === 'links' ? r.links.length : 0), 0),
+      })),
+  )
+)
+  .filter(c => c.count > 0)
+  .sort((a, b) => new Date(b.post.publish_date).valueOf() - new Date(a.post.publish_date).valueOf());
 
 // Get all definitions that have link sources
 const allDefinitions = await fetchDefinitions();
@@ -25,38 +37,22 @@ const defsWithLinkSources = allDefinitions.filter(
   d => d.sources && d.sources.some(s => s.type === 'link')
 );
 
-// Aggregate all links from blog posts
-const postLinks = postsWithLinks.flatMap(post =>
-  (post.links ?? []).map(link => ({
-    ...link,
-    dateAdded: new Date(link.date_added),
-    sourcePost: {
-      title: post.title,
-      slug: post.slug,
-      publishDate: new Date(post.publish_date),
-      author: post.author
-    }
-  }))
-);
+const postLinks = linkDocs.map(link => ({
+  url: link.url,
+  title: link.title,
+  description: link.description ?? '',
+  date_added: link.date_added,
+}));
 
 // Aggregate all link sources from definitions
-const definitionLinks = defsWithLinkSources.flatMap(def => {
-  const linkSources = (def.sources ?? []).filter(s => s.type === 'link');
-  return linkSources.map(source => ({
+const definitionLinks = defsWithLinkSources.flatMap(def =>
+  (def.sources ?? []).filter(s => s.type === 'link').map(source => ({
     url: source.url ?? '',
     title: source.title ?? 'Untitled',
     description: source.description ?? '',
-    tags: def.tags ?? [],
     date_added: def.publish_date,
-    dateAdded: new Date(def.publish_date),
-    sourcePost: {
-      title: `${def.term} (definition)`,
-      slug: `dictionary/${def.slug}`,
-      publishDate: new Date(def.publish_date),
-      author: undefined,
-    }
-  }));
-});
+  }))
+);
 
 // Combine all links
 const allLinks = [...postLinks, ...definitionLinks];
@@ -68,7 +64,7 @@ const sortedLinks = allLinks.sort(
 
 // Get some stats
 const totalLinks = allLinks.length;
-const totalPostSources = postsWithLinks.length;
+const totalPostSources = collections.length;
 const totalDefinitionSources = defsWithLinkSources.length;
 const totalSources = totalPostSources + totalDefinitionSources;
 
@@ -106,9 +102,9 @@ const pageDescription = `Browse all ${totalLinks} links from ${totalSources} pos
         {collections.length > 0 ? (
           <nav class="type-nav" aria-label="Link collections">
             {collections.map((c, i) => (
-              <a href={`/blog/${c.slug}`} class:list={['type-card', `type-card--${['primary', 'secondary', 'tertiary'][i % 3]}`]}>
-                <span class="tc-label">{c.title}</span>
-                <span class="tc-count">{c.links?.length ?? 0}</span>
+              <a href={`/blog/${c.post.slug}`} class:list={['type-card', `type-card--${['primary', 'secondary', 'tertiary'][i % 3]}`]}>
+                <span class="tc-label">{c.post.title}</span>
+                <span class="tc-count">{c.count}</span>
                 <span class="tc-arrow" aria-hidden="true">→</span>
               </a>
             ))}
