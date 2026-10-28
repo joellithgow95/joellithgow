@@ -216,7 +216,8 @@ src/content/config.ts           # collection definitions + Zod schemas
 | `blog` | `blog_post` | Every post (one type: articles, short thoughts, link lists) |
 | `projects` | `project_page` | Case studies |
 | `experience` | `experience_entry` | Work history |
-| `spotify_likes`, `inat_observations`, `links` | `spotify_like`, `inat_observation`, `link` | Data docs (ADR 026), keyed by document id. Shown only through posts' slices and the music/nature pages |
+| `spotify_likes`, `inat_observations` | `spotify_like`, `inat_observation` | Gateway data docs (ADR 026), filed under **Data** in the editor, keyed by document id. Shown only through posts' slices and the music/nature pages |
+| `links` | `link` | Hand-curated links, in the main content list (not **Data**, which is only scraped third-party data). Shown only through posts' link slices |
 | `definitions` | `definition` | Glossary terms; routes under `/blog/dictionary/`. CMS-only, not seeded from local files |
 | `applications` | Local MDX | Not in CMS — intentional |
 

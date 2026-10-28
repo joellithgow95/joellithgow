@@ -62,6 +62,7 @@ async def test_data_types_are_filed_under_data(env):
     assert schema["spotify_like"]["group"] == "Data"
     assert schema["inat_observation"]["group"] == "Data"
     assert "group" not in schema["blog_post"]
+    assert "group" not in schema["link"]  # hand-curated, so not under Data
 
 
 # ---------------------------------------------------------------------------
