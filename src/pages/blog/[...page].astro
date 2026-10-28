@@ -100,9 +100,13 @@ const slicesBySlug = new Map(
 const linkCollectionPosts = allPosts.filter(post => post.kind === 'post' && post.links && post.links.length > 0);
 const totalLinks = linkCollectionPosts.reduce((sum, post) => sum + (('links' in post && (post as any).links?.length) || 0), 0);
 
-// Document-type counts for the "Browse" sidebar cards
-const spotifyCount = allPosts.filter(post => post.kind === 'spotify_dump').length;
-const natureCount = allPosts.filter(post => post.kind === 'nature_outing').length;
+// Document-type counts for the "Browse" sidebar cards. Music and Birds count
+// the posts that show songs or observations through a slice, plus any legacy
+// month or outing documents still loaded (none once they are migrated).
+const hasSlice = (post: (typeof allPosts)[number], types: string[]) =>
+  post.kind === 'post' && Array.isArray((post as any).data) && (post as any).data.some((s: any) => types.includes(s?.block_type));
+const spotifyCount = allPosts.filter(post => post.kind === 'spotify_dump' || hasSlice(post, ['music_range', 'music_picks'])).length;
+const natureCount = allPosts.filter(post => post.kind === 'nature_outing' || hasSlice(post, ['nature_range', 'nature_picks'])).length;
 const definitionCount = allPosts.filter(post => post.kind === 'definition').length;
 
 // Sidebar: browse the log by document type (colored brutalist nav cards)

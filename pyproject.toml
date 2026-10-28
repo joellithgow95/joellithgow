@@ -32,8 +32,9 @@ astraeus-otel = { path = "../astraeus/packages/astraeus-otel", editable = true }
 astraeus-portal = { path = "../astraeus/packages/astraeus-portal", editable = true }
 mediakit = { path = "../astraeus/packages/mediakit", editable = true }
 
+# The legacy month and outing gateways (spotify-liked-dump, inaturalist-field-trips) are
+# no longer registered: their posts became blog posts with slices (cms/migrate_to_slices.py),
+# and a run would write the old documents back on the same slugs.
 [project.entry-points."starlette_cms_gateways.gateways"]
-spotify-liked-dump       = "cms.gateways.spotify_liked_dump:SpotifyLikedDumpGateway"
-inaturalist-field-trips  = "cms.gateways.inaturalist_field_trips:INaturalistFieldTripsGateway"
 spotify-likes            = "cms.gateways.spotify_likes:SpotifyLikesGateway"
 inaturalist-observations = "cms.gateways.inaturalist_observations:INaturalistObservationsGateway"

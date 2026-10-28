@@ -152,9 +152,17 @@ model moves to data documents (astraeus ADR 026):
   not for hand edits). No clustering: which sightings make an outing is a post's choice. Ranges as below, except
   Spotify's `custom` is liked *dates* and the floor is 2025-01-01. A song you un-like or a deleted observation keeps
   its document. Their own cursors: the first run of each is `all_time` (about 1,000 songs, one publish).
-- **Legacy post gateways: `spotify-liked-dump` and `inaturalist-field-trips`.** Still keep the live month and
-  outing posts current, so run them alongside the data gateways until the migration converts those posts into
-  posts with slices and removes them. Everything below describes these two.
+- **Monthly music post.** `uv run python -m cms.compose_music_month` (dry run; `--api-key … --apply` to write)
+  makes last month's "What I've been listening to — <month>" as a **draft** `blog_post` in Staging, slug
+  `spotify-dump-YYYY-MM`, holding only a `music_range` slice. Import ref `music:month:YYYY-MM`, so a month that
+  has a post already, or has no likes, gets nothing. The `music-month` CronJob in jlithgow-ops syncs
+  `spotify-likes` and then runs it on the 1st. It never publishes.
+- **Legacy post gateways: `spotify-liked-dump` and `inaturalist-field-trips`.** No longer registered (their entry
+  points are gone from `pyproject.toml`). `cms/migrate_to_slices.py` turns their 22 months and 31 outings into
+  blog posts on the same slugs (a month: `music_range`; an outing: `nature_picks` of its own observations) and
+  stages the old documents' deletion in the same changeset, so one publish swaps them in one build. Read its
+  docstring: `report` → `apply --allow-prod` → Joel publishes the changeset → `verify`. Everything below
+  describes the legacy two, and goes once their code is removed.
 
 They are configured per gateway, not hard-coded:
 
