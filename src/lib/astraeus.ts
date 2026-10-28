@@ -18,8 +18,6 @@ import type {
   BlogPost,
   ProjectPage,
   ExperienceEntry,
-  SpotifyDump,
-  NatureOuting,
   Definition,
 } from './astraeus-types';
 
@@ -29,8 +27,6 @@ import type {
 
 export type AnyBlogPost =
   | (AstraeusDocument<BlogPost> & { kind: 'post' })
-  | (AstraeusDocument<SpotifyDump> & { kind: 'spotify_dump' })
-  | (AstraeusDocument<NatureOuting> & { kind: 'nature_outing' })
   | (AstraeusDocument<Definition> & { kind: 'definition' });
 
 // ---------------------------------------------------------------------------
@@ -38,16 +34,14 @@ export type AnyBlogPost =
 // ---------------------------------------------------------------------------
 
 /**
- * Fetch all published blog posts, Spotify dumps, and iNaturalist outings,
- * merged and sorted by publish_date descending.
+ * Fetch all published blog posts and definitions, merged and sorted by
+ * publish_date descending.
  *
  * Returns the AnyBlogPost union type — callers should branch on kind.
  */
 export async function fetchBlogPosts(): Promise<AnyBlogPost[]> {
-  const [blogEntries, dumpEntries, outingEntries, definitionEntries] = await Promise.all([
+  const [blogEntries, definitionEntries] = await Promise.all([
     getCollection('blog'),
-    getCollection('spotify_dumps'),
-    getCollection('nature_outings'),
     getCollection('definitions'),
   ]);
 
@@ -55,14 +49,6 @@ export async function fetchBlogPosts(): Promise<AnyBlogPost[]> {
     ...blogEntries.map((e) => ({
       ...(e.data as AstraeusDocument<BlogPost>),
       kind: 'post' as const,
-    })),
-    ...dumpEntries.map((e) => ({
-      ...(e.data as AstraeusDocument<SpotifyDump>),
-      kind: 'spotify_dump' as const,
-    })),
-    ...outingEntries.map((e) => ({
-      ...(e.data as AstraeusDocument<NatureOuting>),
-      kind: 'nature_outing' as const,
     })),
     ...definitionEntries.map((e) => ({
       ...(e.data as AstraeusDocument<Definition>),
@@ -84,58 +70,6 @@ export async function fetchBlogPosts(): Promise<AnyBlogPost[]> {
 export async function fetchBlogPost(slug: string): Promise<AstraeusDocument<BlogPost> | null> {
   const entry = await getEntry('blog', slug);
   return entry ? (entry.data as AstraeusDocument<BlogPost>) : null;
-}
-
-// ---------------------------------------------------------------------------
-// Spotify dumps
-// ---------------------------------------------------------------------------
-
-/**
- * Fetch all published Spotify liked song dumps, sorted by publish_date descending.
- */
-export async function fetchSpotifyDumps(): Promise<AstraeusDocument<SpotifyDump>[]> {
-  const entries = await getCollection('spotify_dumps');
-  return entries
-    .map((e) => e.data as AstraeusDocument<SpotifyDump>)
-    .sort((a, b) => {
-      const dateA = new Date(a.publish_date || '').getTime();
-      const dateB = new Date(b.publish_date || '').getTime();
-      return dateB - dateA;
-    });
-}
-
-/**
- * Fetch a single Spotify dump by slug.
- */
-export async function fetchSpotifyDump(slug: string): Promise<AstraeusDocument<SpotifyDump> | null> {
-  const entry = await getEntry('spotify_dumps', slug);
-  return entry ? (entry.data as AstraeusDocument<SpotifyDump>) : null;
-}
-
-// ---------------------------------------------------------------------------
-// iNaturalist outings
-// ---------------------------------------------------------------------------
-
-/**
- * Fetch all published iNaturalist outings, sorted by publish_date descending.
- */
-export async function fetchNatureOutings(): Promise<AstraeusDocument<NatureOuting>[]> {
-  const entries = await getCollection('nature_outings');
-  return entries
-    .map((e) => e.data as AstraeusDocument<NatureOuting>)
-    .sort((a, b) => {
-      const dateA = new Date(a.publish_date || '').getTime();
-      const dateB = new Date(b.publish_date || '').getTime();
-      return dateB - dateA;
-    });
-}
-
-/**
- * Fetch a single iNaturalist outing by slug.
- */
-export async function fetchNatureOuting(slug: string): Promise<AstraeusDocument<NatureOuting> | null> {
-  const entry = await getEntry('nature_outings', slug);
-  return entry ? (entry.data as AstraeusDocument<NatureOuting>) : null;
 }
 
 // ---------------------------------------------------------------------------

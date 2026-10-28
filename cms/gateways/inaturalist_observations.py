@@ -3,11 +3,9 @@ iNaturalist observations gateway — one ``inat_observation`` data document per 
 
 ADR 026 (astraeus): collected data is stored one item per document, with no
 grouping of its own. Which sightings make an outing, a trip or a post about birds
-is a post's choice (a slice), not the gateway's, so the 3 km clustering of the
-``inaturalist_field_trips`` gateway is not used here. That gateway stays registered
-until the migration converts its outing posts.
+is a post's choice (a slice), not the gateway's.
 
-The record is the same slim one the outings store (``curate_observation``), plus
+The record is a slim one (``curate_observation``), plus
 the photo URLs and the taxon-group tag (``birds``, ``plants``…). No quality grade:
 community IDs change it, which would republish a sighting for nothing the site
 shows. Every body field is the gateway's (``owned_fields`` lists them all), so a
@@ -36,10 +34,95 @@ from typing import Any
 import httpx
 from starlette_cms_gateways import BaseGateway, GatewayItem
 
-from .inaturalist_field_trips import curate_observation, photo_urls, taxon_tags
+# iNaturalist's iconic taxon → the tag a sighting gets.
+_TAXON_TAGS: dict[str, str] = {
+    "Aves": "birds",
+    "Plantae": "plants",
+    "Insecta": "insects",
+    "Fungi": "fungi",
+    "Mammalia": "mammals",
+    "Reptilia": "reptiles",
+    "Amphibia": "amphibians",
+    "Arachnida": "spiders",
+    "Mollusca": "mollusks",
+    "Animalia": "animals",
+    "Actinopterygii": "fish",
+    "Chromista": "algae",
+}
 
 _INAT_API = "https://api.inaturalist.org/v1"
 _PAGE_SIZE = 200
+
+def observation_coords(obs: dict[str, Any]) -> tuple[float, float] | None:
+    """
+    ``(lat, lon)`` of an observation, or ``None`` when it has no usable position.
+
+    iNaturalist's v1 API gives ``location: "lat,lon"``. The older top-level
+    ``latitude``/``longitude`` and our own curated ``lat``/``lon`` are accepted too. An *obscured*
+    observation (a sensitive taxon) carries a position fuzzed over ~20 km, which
+    says nothing about where the outing was, so it counts as unlocated.
+    """
+    if obs.get("obscured"):
+        return None
+    lat = lon = None
+    loc = obs.get("location")
+    if isinstance(loc, str) and "," in loc:
+        a, _, b = loc.partition(",")
+        lat, lon = a, b
+    elif obs.get("latitude") is not None and obs.get("longitude") is not None:
+        lat, lon = obs["latitude"], obs["longitude"]
+    elif obs.get("lat") is not None and obs.get("lon") is not None:  # our own curated shape
+        lat, lon = obs["lat"], obs["lon"]
+    try:
+        la, lo = float(lat), float(lon)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    if not (-90 <= la <= 90 and -180 <= lo <= 180):
+        return None
+    return la, lo
+
+
+def curate_observation(obs: dict[str, Any]) -> dict[str, Any]:
+    """The slim record stored per observation. The site only counts these; the
+    rest is for the CMS reader and for matching a document back to its
+    observations."""
+    taxon = obs.get("taxon") or {}
+    coords = observation_coords(obs)
+    out: dict[str, Any] = {
+        "id": obs.get("id"),
+        "uri": obs.get("uri") or "",
+        "observed_on": obs.get("observed_on") or "",
+        "time_observed_at": obs.get("time_observed_at") or "",
+        "taxon_name": taxon.get("name") or "",
+        "common_name": taxon.get("preferred_common_name") or "",
+        "iconic_taxon": taxon.get("iconic_taxon_name") or "",
+        "place_guess": obs.get("place_guess") or "",
+        # No quality_grade: community IDs change it, which would republish a post
+        # for something the site never shows.
+    }
+    if coords:
+        out["lat"], out["lon"] = coords
+    return out
+
+
+def photo_urls(obs_group: list[dict[str, Any]]) -> list[str]:
+    urls: list[str] = []
+    for obs in obs_group:
+        for photo in obs.get("photos") or []:
+            url = photo.get("url") or ""
+            if url:
+                urls.append(url.replace("square", "original"))
+    return urls
+
+
+def taxon_tags(obs_group: list[dict[str, Any]]) -> list[str]:
+    seen = {
+        _TAXON_TAGS[iconic]
+        for obs in obs_group
+        if (iconic := (obs.get("taxon") or {}).get("iconic_taxon_name") or "") in _TAXON_TAGS
+    }
+    return sorted(seen)
+
 
 # Every field of an inat_observation body; all of them belong to the gateway.
 OBSERVATION_FIELDS = (

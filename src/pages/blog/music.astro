@@ -8,33 +8,23 @@ import { loadDataPool, postsByItem, postsShowing, type PostRef, type Song } from
 import '../../styles/log.css';
 
 // Every liked song, by the month it was liked, newest first; each month links
-// to the posts that show its songs. Until the data gateway has run (no
-// spotify_like documents yet), the legacy monthly posts stand in, one month
-// each, and until the migration converts them they are linked from their month.
+// to the posts that show its songs.
 type Month = { key: string; songs: MosaicSong[]; posts: PostRef[] };
 
 const allPosts = await fetchBlogPosts();
 const { songs } = await loadDataPool();
 const byItem = await postsByItem(allPosts.filter((p) => p.kind === 'post') as any);
-const legacyMonths = allPosts.filter((p: any) => p.kind === 'spotify_dump') as any[];
-const legacyPosts = (key: string) =>
-  legacyMonths.filter((d) => d.publish_date.slice(0, 7) === key).map((d) => ({ slug: d.slug, title: d.title }));
 
-let months: Month[];
-if (songs.length > 0) {
-  const grouped = new Map<string, Song[]>();
-  for (const song of songs) {
-    const key = song.liked_at.slice(0, 7);
-    grouped.set(key, [...(grouped.get(key) ?? []), song]);
-  }
-  months = [...grouped.entries()].map(([key, monthSongs]) => ({
-    key,
-    songs: monthSongs,
-    posts: [...postsShowing(monthSongs.map((s) => s._id), byItem), ...legacyPosts(key)],
-  }));
-} else {
-  months = legacyMonths.map((dump) => ({ key: dump.publish_date.slice(0, 7), songs: dump.songs ?? [], posts: [{ slug: dump.slug, title: dump.title }] }));
+const grouped = new Map<string, Song[]>();
+for (const song of songs) {
+  const key = song.liked_at.slice(0, 7);
+  grouped.set(key, [...(grouped.get(key) ?? []), song]);
 }
+const months: Month[] = [...grouped.entries()].map(([key, monthSongs]) => ({
+  key,
+  songs: monthSongs,
+  posts: postsShowing(monthSongs.map((s) => s._id), byItem),
+}));
 months.sort((a, b) => b.key.localeCompare(a.key));
 const monthLabel = (key: string) =>
   new Date(`${key}-01T00:00:00Z`).toLocaleDateString('en-US', { year: 'numeric', month: 'long', timeZone: 'UTC' });

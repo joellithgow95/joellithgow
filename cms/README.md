@@ -207,7 +207,7 @@ Nightly prod backups run at 2am UTC via cron (`make cron-install` to set up).
 
 ## Gateways
 
-Gateways are Python workers that pull external data into the CMS as draft documents. They run against the staging instance, are reviewed, and published manually.
+Gateways are Python workers that pull external data into the CMS as published data documents, one changeset per run. In prod the `gateways-daily` CronJob (jlithgow-ops) runs them every morning.
 
 ### Available gateways
 
@@ -215,18 +215,15 @@ Gateways are Python workers that pull external data into the CMS as draft docume
 |---|---|---|
 | `SpotifyLikesGateway` (`spotify-likes`) | `spotify_like` | One data document per liked track (ADR 026) |
 | `INaturalistObservationsGateway` (`inaturalist-observations`) | `inat_observation` | One data document per observation (ADR 026) |
-| `SpotifyLikedDumpGateway` (legacy) | `spotify_liked_dump` | Spotify liked tracks, grouped by month |
-| `INaturalistFieldTripsGateway` (legacy) | `inaturalist_outing` | iNaturalist observations, grouped into outings |
 
 ### Running a sync
 
 1. Start the local CMS: `make cms-up` (from repo root)
 2. Open the gateway admin UI: `http://localhost:8001/gateways/shell`
 3. Click **Sync now** for the gateway you want to run
-4. Review the created draft documents at `http://localhost:8001/editor`
-5. Publish the ones you want to appear on the site
+4. The run publishes what it found as one changeset; the documents are under **Data** at `http://localhost:8001/editor`
 
-### Environment variables (staging only)
+### Environment variables
 
 | Variable | Description |
 |---|---|

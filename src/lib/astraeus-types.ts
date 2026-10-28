@@ -135,62 +135,6 @@ export interface ExperienceEntry {
 }
 
 // ---------------------------------------------------------------------------
-// Spotify liked dump
-// ---------------------------------------------------------------------------
-
-export interface SpotifySong {
-  track_name: string;
-  artist_name: string;
-  album_name?: string;
-  album_art_url?: string;
-  spotify_url: string;
-  liked_at: string;
-}
-
-export interface SpotifyDump {
-  slug: string;
-  title: string;
-  description?: string;
-  /** ISO 8601 — first day of the month (YYYY-MM-01) */
-  publish_date: string;
-  song_count?: number;
-  songs?: SpotifySong[];
-  tags?: string[] | null;
-}
-
-// ---------------------------------------------------------------------------
-// iNaturalist outing
-// ---------------------------------------------------------------------------
-
-export interface NatureObservation {
-  [key: string]: unknown;
-}
-
-export interface BoundingBox {
-  lat_min: number;
-  lat_max: number;
-  lon_min: number;
-  lon_max: number;
-}
-
-export interface NatureOuting {
-  slug: string;
-  title: string;
-  description?: string;
-  /** ISO 8601 — date of the outing */
-  publish_date: string;
-  /** Same as publish_date — explicit field for query clarity */
-  outing_date: string;
-  place_guess?: string;
-  observation_count?: number;
-  species_list?: string[];
-  observations?: NatureObservation[];
-  photo_urls?: string[];
-  bounding_box?: BoundingBox;
-  tags?: string[] | null;
-}
-
-// ---------------------------------------------------------------------------
 // Definition / Glossary
 // ---------------------------------------------------------------------------
 

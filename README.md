@@ -37,8 +37,8 @@ joellithgow/
 │   ├── seed.py                 # One-time seed script (MD/MDX → CMS API)
 │   ├── mcp_server.py           # MCP server for Claude Code sessions
 │   └── gateways/               # External data sync workers
-│       ├── spotify_liked_dump.py
-│       └── inaturalist_field_trips.py
+│       ├── spotify_likes.py
+│       └── inaturalist_observations.py
 ├── nginx/
 │   └── cms.conf                # Nginx reverse proxy for prod + staging subdomains
 ├── scripts/
