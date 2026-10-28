@@ -22,7 +22,7 @@ Personal portfolio site for Joel Lithgow — creative technologist. Built with A
 
 - **Frontend**: Astro 5 static site, deployed to Netlify. Fetches all content via Astro Content Layer loaders at build time — no client-side CMS calls.
 - **CMS**: Astraeus (starlette-cms) running on a k3s cluster (managed in `jlithgow-ops`; staging is still on EC2). Exposes a REST API. Content is published manually via the editor UI or gateway syncs.
-- **Gateways**: Python workers that pull external data (Spotify liked tracks, iNaturalist observations) into the CMS as draft documents for review and publish.
+- **Gateways**: Python workers that pull external data (Spotify liked tracks, iNaturalist observations) into the CMS as published data documents, one per item, synced daily by a CronJob in `jlithgow-ops`. Posts show that data through slices (see `docs/blog-conventions.md`).
 - **Backups**: Prod DB is streamed continuously to Cloudflare R2 by Litestream (`jlithgow-ops-backups`, `astraeus-cms/prod/content.db`) and restored on pod start. The nightly EC2 backup below covers the fallback box only and is stale.
 
 ---
@@ -35,12 +35,12 @@ joellithgow/
 │   ├── main.py                 # App entrypoint — wires CMS + editor + gateways
 │   ├── schema.py               # Document type definitions
 │   ├── seed.py                 # One-time seed script (MD/MDX → CMS API)
+│   ├── slices.py               # Slice blocks: what a post shows from the data documents
+│   ├── compose_music_month.py  # Drafts last month's music post (run by a CronJob)
 │   ├── mcp_server.py           # MCP server for Claude Code sessions
 │   └── gateways/               # External data sync workers
 │       ├── spotify_likes.py
 │       └── inaturalist_observations.py
-├── nginx/
-│   └── cms.conf                # Nginx reverse proxy for prod + staging subdomains
 ├── scripts/
 │   ├── backup-prod-db.sh       # EC2: backup prod container → ~/backups/latest.db.gz
 │   ├── restore-db.sh           # EC2: restore .db.gz into a named container
@@ -115,12 +115,15 @@ make cms-build
 
 | Collection | Source | Notes |
 |---|---|---|
-| `blog` | Astraeus CMS (`blog_post`) | Articles, thoughts, link collections |
+| `blog` | Astraeus CMS (`blog_post`) | Every post: one type, each with its own page |
 | `projects` | Astraeus CMS (`project_page`) | Case studies with body blocks |
 | `experience` | Astraeus CMS (`experience_entry`) | Work history |
+| `definitions` | Astraeus CMS (`definition`) | Dictionary entries, pages under `/blog/dictionary/` |
+| `links` | Astraeus CMS (`link`) | One document per link, shown through posts' slices |
+| `spotify_likes`, `inat_observations` | Astraeus CMS (`spotify_like`, `inat_observation`) | Gateway data, one document per item; shown through posts' slices and `/blog/music`, `/blog/nature` |
 | `applications` | Local MDX (`src/content/applications/`) | Not in CMS — intentional |
 
-Gateway-sourced content (Spotify dumps, iNat outings) lives in the CMS as additional document types and is merged into the blog index at build time.
+Posts show data (songs, sightings, definitions, links) through slices in their `data` field, resolved at build time. See `docs/blog-conventions.md`.
 
 ---
 
