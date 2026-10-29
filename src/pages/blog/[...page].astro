@@ -16,6 +16,7 @@ import ImageGallery from '@components/modals/ImageGallery.astro';
 import AlbumMosaic from '@components/blog/AlbumMosaic.astro';
 import PostSlices from '@components/blog/slices/PostSlices.astro';
 import DefinitionBeat from '@components/blog/DefinitionBeat.astro';
+import UnifiedRecord from '@components/blog/UnifiedRecord.astro';
 import { loadDataPool, resolveSlices } from '@lib/slices';
 
 export const getStaticPaths = (async () => {
@@ -113,7 +114,18 @@ const slicesBySlug = new Map(
 
 // PROTOTYPE: a post whose only slice is definition_picks gets the layout
 // named by PROTOTYPE_FEED (beat | entry | kicker). Unset = today's card.
-const PROTOTYPE_FEED = process.env.PROTOTYPE_FEED as 'beat' | 'entry' | 'kicker' | undefined;
+const PROTOTYPE_FEED = process.env.PROTOTYPE_FEED as 'beat' | 'entry' | 'kicker' | 'unified' | undefined;
+const UNIFIED = PROTOTYPE_FEED === 'unified';
+// Round 2: as if Joel had cleared the note on these, leaving just the definition
+const PROTOTYPE_EMPTY = new Set(UNIFIED ? ['diegetic-ui', 'judas-pig', 'bot-bash'] : []);
+const linkOnly = (slug: string) => {
+  const s = slicesBySlug.get(slug) ?? [];
+  return s.length === 1 && s[0].kind === 'links' && !s[0].tag && s[0].links.length === 1 ? s[0].links[0] : null;
+};
+// Round 2: one made-up link beat at the top of the latest quarter, to show the shape
+const demoLink = UNIFIED && isLatest
+  ? (await loadDataPool()).links.find((l) => /simon willison/i.test(l.title))
+  : undefined;
 // Titles Joel floated in the thread, to show the kicker layout with a take as the title
 const PROTOTYPE_TITLES: Record<string, string> = { 'judas-pig': 'Can a Pig Be a Narc?' };
 const definitionOnly = (slug: string) => {
@@ -191,12 +203,20 @@ const jsonLd = {
                 posts here while editing. Latest quarter only: that is where a new
                 post would land. */}
             <div class="log-feed" data-cms-list={isLatest ? 'blog_post' : undefined}>
-              {posts.map((post) => {
+              {posts.map((post) => (<>
+                {demoLink && post.slug === 'rebecca-powell-blog' && (
+                  <article class="log-record" data-type="post" data-proto="beat">
+                    <div class="record-body">
+                      <UnifiedRecord kind="link-beat" href={demoLink.url} date="2026-10-20" link={demoLink} tags={demoLink.tags} />
+                    </div>
+                  </article>
+                )}
+                {(() => {
                 // Blog posts (not gateway-synced dumps/outings) can be edited
                 // inline from the index. data-cms-id scopes which document a
                 // field edit belongs to.
                 const isEditorial = post.kind === 'post';
-                const body = ('body_markdown' in post ? (post as any).body_markdown : null) ?? '';
+                const body = PROTOTYPE_EMPTY.has(post.slug) ? '' : ('body_markdown' in post ? (post as any).body_markdown : null) ?? '';
                 const excerpt = ('excerpt' in post && (post as any).excerpt) || '';
                 const linkCount = ('links' in post && (post as any).links?.length) || 0;
                 // A short post shows its whole body on the card; a long one
@@ -204,7 +224,25 @@ const jsonLd = {
                 const showsFullBody = !excerpt && SHORT_BODY_CHARS >= body.length;
                 const postHref = `/blog/${post.slug}`;
                 const protoDefs = PROTOTYPE_FEED ? definitionOnly(post.slug) : null;
-                if (protoDefs) return (
+                const protoLink = UNIFIED ? linkOnly(post.slug) : null;
+                if (UNIFIED && (protoDefs || protoLink) && !body.trim()) return (
+                  <article class="log-record" data-type="post" data-proto="beat">
+                    <div class="record-body">
+                      <UnifiedRecord kind={protoDefs ? 'def-beat' : 'link-beat'} href={postHref} date={post.publish_date as any}
+                        tags={post.tags} definitions={protoDefs ?? []} link={protoLink ?? undefined} />
+                    </div>
+                  </article>
+                );
+                if (UNIFIED && protoDefs && protoDefs.length === 1) return (
+                  <article class="log-record" data-type="post">
+                    <div class="record-body">
+                      <UnifiedRecord kind="def-post" href={postHref} date={post.publish_date as any}
+                        description={(post as any).description} body={showsFullBody ? body : previewMarkdown(body)} more={!showsFullBody}
+                        tags={post.tags} definitions={protoDefs} />
+                    </div>
+                  </article>
+                );
+                if (protoDefs && !UNIFIED) return (
                   <article class="log-record" data-type="post" data-proto={PROTOTYPE_FEED}>
                     <div class="record-body">
                       <DefinitionBeat
@@ -228,16 +266,17 @@ const jsonLd = {
                   data-cms-type={isEditorial ? 'blog_post' : undefined}
                 >
                   <div class="record-body">
-                    <time class="record-date" datetime={new Date(post.publish_date).toISOString()}>
+                    <a href={UNIFIED ? postHref : undefined} class="record-date-link"><time class="record-date" datetime={new Date(post.publish_date).toISOString()}>
                       {new Date(post.publish_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
-                    </time>
+                    </time></a>
                   <Card variant="flat" as="article" class="featured-post-card" data-post-type={post.kind}>
                     <h2 class="post-title">
                       <a
-                        href={postHref}
+                        href={protoLink ? protoLink.url : postHref}
                         class="post-title-link"
+                        {...(protoLink ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                       >
-                        <span data-cms-field="title">{post.title}</span>
+                        <span data-cms-field="title">{post.title}</span>{protoLink && <span class="post-title-ext" aria-label="external link"> ↗</span>}
                       </a>
                       {linkCount > 0 && (
                         <Badge variant="tertiary" size="sm" class="collection-badge">{linkCount} links</Badge>
@@ -311,7 +350,7 @@ const jsonLd = {
                       </a>
                     )}
 
-                    <PostSlices slices={slicesBySlug.get(post.slug) ?? []} compact />
+                    {!protoLink && <PostSlices slices={slicesBySlug.get(post.slug) ?? []} compact />}
 
                     {post.tags && post.tags.length > 0 && (
                       <div class="post-tags">
@@ -330,7 +369,7 @@ const jsonLd = {
                   </div>
                 </article>
                 );
-              })}
+              })()}</>))}
             </div>
           </section>
         )}
@@ -1161,6 +1200,9 @@ const jsonLd = {
   }
   .log-record:first-child { border-top: none; padding-top: var(--space-sm); }
   .log-record[data-proto="beat"] { padding: var(--space-md) 0; }
+  .record-date-link { text-decoration: none; color: inherit; }
+  .record-date-link[href]:hover .record-date { color: var(--accent-primary); text-decoration: underline; }
+  .post-title-ext { font-family: var(--font-body); font-size: 0.7em; color: var(--text-secondary); }
 
   /* ---- Record body: neutralize old brutalist card chrome ---- */
   .log-record .featured-post-card {
