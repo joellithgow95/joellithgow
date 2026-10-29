@@ -1,6 +1,6 @@
 ---
 import { marked } from 'marked';
-import { fetchBlogPosts } from '@lib/astraeus';
+import { fetchBlogPosts, fetchDefinitions } from '@lib/astraeus';
 import type { AstraeusDocument, BlogPost } from '@lib/astraeus-types';
 import type { AnyBlogPost } from '@lib/astraeus';
 import BaseLayout from '@components/common/BaseLayout.astro';
@@ -16,19 +16,28 @@ import { resolveSlices } from '@lib/slices';
 import '../../styles/log.css';
 
 export async function getStaticPaths() {
-  const allPosts = await fetchBlogPosts();
-  // Every post gets a detail page
-  return allPosts.map(post => ({
-    params: { slug: post.slug },
-    props: { post },
-  }));
+  const [allPosts, definitions] = await Promise.all([fetchBlogPosts(), fetchDefinitions()]);
+  const postSlugs = new Set(allPosts.map((post) => post.slug));
+  // Every post gets a detail page. Definitions used to be served here too, so
+  // their old /blog/<slug> URLs now redirect to the dictionary page.
+  return [
+    ...allPosts.map((post) => ({
+      params: { slug: post.slug },
+      props: { post },
+    })),
+    ...definitions
+      .filter((def) => !postSlugs.has(def.slug))
+      .map((def) => ({
+        params: { slug: def.slug },
+        props: { redirectTo: `/blog/dictionary/${def.slug}` },
+      })),
+  ];
 }
 
-interface Props {
-  post: AnyBlogPost;
-}
+type Props = { post: AnyBlogPost; redirectTo?: undefined } | { post?: undefined; redirectTo: string };
 
-const { post } = Astro.props;
+if (Astro.props.redirectTo) return Astro.redirect(Astro.props.redirectTo, 301);
+const post = Astro.props.post!;
 const kind = post.kind;
 const { title, publish_date } = post;
 const description = ('description' in post && (post as any).description) || '';

@@ -1,7 +1,7 @@
 ---
 import { marked } from 'marked';
 import type { GetStaticPaths } from 'astro';
-import { fetchBlogPosts } from '@lib/astraeus';
+import { fetchBlogPosts, fetchDefinitions } from '@lib/astraeus';
 import BaseLayout from '@components/common/BaseLayout.astro';
 import ThemeModal from '@components/modals/ThemeModal.astro';
 import UIInteractions from '@components/interactive/UIInteractions.astro';
@@ -105,7 +105,8 @@ const hasSlice = (post: (typeof allPosts)[number], types: string[]) =>
   post.kind === 'post' && Array.isArray((post as any).data) && (post as any).data.some((s: any) => types.includes(s?.block_type));
 const spotifyCount = allPosts.filter(post => hasSlice(post, ['music_range', 'music_picks'])).length;
 const natureCount = allPosts.filter(post => hasSlice(post, ['nature_range', 'nature_picks'])).length;
-const definitionCount = allPosts.filter(post => post.kind === 'definition').length;
+// Definitions have no feed cards of their own; count the dictionary instead
+const definitionCount = (await fetchDefinitions()).length;
 
 // Sidebar: browse the log by document type (colored brutalist nav cards)
 const typeNav = [
@@ -164,7 +165,7 @@ const jsonLd = {
             {/* data-cms-list + the template below let the editor show unpublished
                 posts here while editing. Latest quarter only: that is where a new
                 post would land. */}
-            <div class="log-feed" data-cms-list={isLatest ? 'blog_post definition' : undefined}>
+            <div class="log-feed" data-cms-list={isLatest ? 'blog_post' : undefined}>
               {posts.map((post) => {
                 // Blog posts (not gateway-synced dumps/outings) can be edited
                 // inline from the index. data-cms-id scopes which document a
@@ -187,55 +188,6 @@ const jsonLd = {
                     <time class="record-date" datetime={new Date(post.publish_date).toISOString()}>
                       {new Date(post.publish_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
                     </time>
-                {post.kind === 'definition' ? (
-                                  // Definition card — styled like a dictionary entry
-                                  <Card variant="flat" as="article" class="featured-post-card" data-post-type="definition">
-                                    <time
-                                      datetime={new Date(post.publish_date).toISOString()}
-                                      class="post-date"
-                                    >
-                                      {new Date(post.publish_date).toLocaleDateString('en-US', {
-                                        year: 'numeric',
-                                        month: 'long',
-                                        day: 'numeric'
-                                      })}
-                                    </time>
-
-                                    <h2 class="post-title">
-                                      <a
-                                        href={`/blog/dictionary/${post.slug}`}
-                                        class="post-title-link"
-                                      >
-                                        {(post as any).term || post.title}
-                                      </a>
-                                    </h2>
-
-                                    {(post as any).definition && (
-                                      <blockquote class="definition-preview">
-                                        <p>{(post as any).definition.slice(0, 300)}{(post as any).definition.length > 300 ? '…' : ''}</p>
-                                      </blockquote>
-                                    )}
-
-                                    {(post as any).personal_notes && (
-                                      <p class="post-description">{(post as any).personal_notes.slice(0, 200)}{(post as any).personal_notes.length > 200 ? '...' : ''}</p>
-                                    )}
-
-                                    {post.tags && post.tags.length > 0 &&  (
-                                      <div class="post-tags">
-                                        {post.tags.map((tag) => (
-                                          <Badge href={`/blog/tags/${tag}`} size="sm">#{tag}</Badge>
-                                        ))}
-                                      </div>
-                                    )}
-
-                                    <div class="post-meta">
-                                      <Button href={`/blog/dictionary/${post.slug}`} variant="primary" size="md">
-                                        View definition →
-                                      </Button>
-                                    </div>
-                                  </Card>
-                                ) : (
-                                  // Blog post card
                   <Card variant="flat" as="article" class="featured-post-card" data-post-type={post.kind}>
                     <time
                       datetime={new Date(post.publish_date).toISOString()}
@@ -344,7 +296,6 @@ const jsonLd = {
                       </div>
                     )}
                   </Card>
-                )}
                   </div>
                 </article>
                 );
@@ -374,27 +325,6 @@ const jsonLd = {
                     data-cms-fill="body_markdown"
                     data-cms-fill-format="excerpt"
                   />
-                </Card>
-              </div>
-            </article>
-          </template>
-        )}
-
-        {/* The same for a definition: the dictionary-style card, minus the link (a
-            draft has no page yet) and with nothing editable, like the live ones. */}
-        {isLatest && (
-          <template data-cms-draft-template="definition">
-            <article class="log-record" data-type="definition">
-              <div class="record-body">
-                <time class="record-date" data-cms-fill="publish_date" data-cms-fill-format="date"></time>
-                <Card variant="flat" as="article" class="featured-post-card" data-post-type="definition">
-                  <h2 class="post-title">
-                    <span class="post-title-text" data-cms-fill="term"></span>
-                  </h2>
-                  <blockquote class="definition-preview">
-                    <p data-cms-fill="definition" data-cms-fill-format="excerpt"></p>
-                  </blockquote>
-                  <p class="post-description" data-cms-fill="personal_notes" data-cms-fill-format="excerpt"></p>
                 </Card>
               </div>
             </article>
@@ -1180,22 +1110,6 @@ const jsonLd = {
     }
   }
 
-  /* Definition preview blockquote in blog feed */
-    .definition-preview {
-      margin: var(--space-lg) 0;
-      padding: var(--space-md) var(--space-lg);
-      background: var(--bg-secondary);
-      border-left: 3px solid var(--accent-primary);
-      font-style: italic;
-      color: var(--text-secondary);
-      font-size: var(--text-base);
-      line-height: var(--leading-relaxed);
-    }
-
-    .definition-preview p {
-      margin: 0;
-    }
-
     /* Theme toggle button */
     .theme-toggle-button {
       position: fixed;
@@ -1294,8 +1208,7 @@ const jsonLd = {
   /* Reading text in the body face */
   .log-record .post-description,
   .log-record .post-excerpt-preview,
-  .log-record .post-content-preview,
-  .log-record .definition-preview p {
+  .log-record .post-content-preview {
     font-family: var(--font-body);
     font-size: var(--text-base);
     line-height: var(--leading-relaxed);
@@ -1353,33 +1266,6 @@ const jsonLd = {
     transform: none;
   }
 
-  /* Definition quote → white card with accent rule */
-  .log-record .definition-preview {
-    background: var(--bg-secondary);
-    width: fit-content;
-    margin: 0 0 var(--space-sm) 0;
-    padding: var(--space-md);
-    border-left: 3px solid var(--accent-primary);
-    color: var(--text-primary);
-  }
-  .log-record .definition-preview p { color: var(--text-primary); }
-
-  /* A little breathing room before the tags on definition cards */
-  .log-record[data-type="definition"] .post-tags {
-    margin-top: var(--space-sm);
-  }
-
-  /* Fancy accent quote marks around the defined term (definition cards only) */
-  .log-record[data-type="definition"] .post-title::before {
-    content: '\201C';
-    color: var(--accent-primary);
-    margin-right: 0.02em;
-  }
-  .log-record[data-type="definition"] .post-title::after {
-    content: '\201D';
-    color: var(--accent-primary);
-    margin-left: 0.02em;
-  }
   .log-record .post-description {
     background: none;
     border: none;

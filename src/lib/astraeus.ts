@@ -22,39 +22,30 @@ import type {
 } from './astraeus-types';
 
 // ---------------------------------------------------------------------------
-// Union type for all blog-feed post kinds
+// Blog feed
 // ---------------------------------------------------------------------------
 
-export type AnyBlogPost =
-  | (AstraeusDocument<BlogPost> & { kind: 'post' })
-  | (AstraeusDocument<Definition> & { kind: 'definition' });
+/**
+ * One item on the blog feed. Only posts: a definition reaches the feed through
+ * a post that picks it (a `definition_picks` slice), and has its own page under
+ * /blog/dictionary/. `kind` stays so a later feed item type can join the union.
+ */
+export type AnyBlogPost = AstraeusDocument<BlogPost> & { kind: 'post' };
 
 // ---------------------------------------------------------------------------
 // Blog posts
 // ---------------------------------------------------------------------------
 
 /**
- * Fetch all published blog posts and definitions, merged and sorted by
- * publish_date descending.
- *
- * Returns the AnyBlogPost union type — callers should branch on kind.
+ * Fetch all published blog posts, sorted by publish_date descending.
  */
 export async function fetchBlogPosts(): Promise<AnyBlogPost[]> {
-  const [blogEntries, definitionEntries] = await Promise.all([
-    getCollection('blog'),
-    getCollection('definitions'),
-  ]);
+  const blogEntries = await getCollection('blog');
 
-  const posts: AnyBlogPost[] = [
-    ...blogEntries.map((e) => ({
-      ...(e.data as AstraeusDocument<BlogPost>),
-      kind: 'post' as const,
-    })),
-    ...definitionEntries.map((e) => ({
-      ...(e.data as AstraeusDocument<Definition>),
-      kind: 'definition' as const,
-    })),
-  ];
+  const posts: AnyBlogPost[] = blogEntries.map((e) => ({
+    ...(e.data as AstraeusDocument<BlogPost>),
+    kind: 'post' as const,
+  }));
 
   return posts.sort((a, b) => {
     const dateA = new Date(a.publish_date || '').getTime();

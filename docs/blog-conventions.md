@@ -41,7 +41,7 @@ A definition is dictionary data: the term, what it means, and where that comes f
 - `term` and `definition`: the factual definition, in Markdown. Keep it neutral.
 - `sources`: a list mixing `{type: "link", ...}` and `{type: "citation", ...}` entries. Every entry needs its `type` or the site build fails. Leave it empty rather than inventing a source.
 - `personal_notes`: leave it empty on new definitions; the take goes in the post. Older definitions still have notes here, and the dictionary page shows them.
-- A new definition gets **no feed card of its own**; it shows on the feed only when a post picks it with `definition_picks`. Its page under `/blog/dictionary/<slug>` stays. (Decided 2026-10-28. The site still gives every definition its own feed card until that change is built; see *In progress*.)
+- A definition gets **no feed card of its own**, and is not on tag pages or in RSS; it shows on the feed only when a post picks it with `definition_picks`. Its page under `/blog/dictionary/<slug>` stays, and its old `/blog/<slug>` URL redirects there. A draft definition is not drawn on `/blog` while editing either; check it in the editor shell, or through the draft post that picks it.
 
 **The usual flow, in a Claude session with the CMS MCP tools:**
 
@@ -62,7 +62,6 @@ A thought about one link still puts that link inline in its body (see *Who write
 
 These are decided but not finished, so check the code before relying on them:
 
-- **Definitions off the feed.** Dropping the feed card that every definition gets today, so a definition reaches the feed only through a post (see *Definitions*).
 - **Outing suggestions.** A helper that proposes a draft trip post from new sightings near each other. Not started.
 
 ## Who writes what

@@ -28,7 +28,6 @@ export const getStaticPaths = (async () => {
   // What a post's slices show, as "N tracks" / "N obs", for its row's count
   const sliceCount = new Map<string, string>();
   for (const post of allPosts) {
-    if (post.kind !== 'post') continue;
     const resolved = await resolveSlices((post as any).data);
     const songs = resolved.reduce((n, r) => n + (r.kind === 'music' ? r.songs.length : 0), 0);
     const obs = resolved.reduce((n, r) => n + (r.kind === 'nature' ? r.observations.length : 0), 0);
@@ -84,11 +83,8 @@ const pageDescription = `All blog posts tagged with ${tag}.`;
           </h2>
           <div class="log-feed">
             {posts.map((post) => {
-              const isDefinition = post.kind === 'definition';
-              const href = isDefinition ? `/blog/dictionary/${post.slug}` : `/blog/${post.slug}`;
-              const title = isDefinition ? ((post as any).term || (post as any).title) : (post as any).title;
-              const count =
-                post.kind === 'post' && sliceCount.has(post.slug) ? sliceCount.get(post.slug) : null;
+              const href = `/blog/${post.slug}`;
+              const count = sliceCount.get(post.slug) ?? null;
               return (
                 <article class="log-item">
                   <time class="log-date" datetime={new Date(post.publish_date).toISOString()}>
@@ -96,15 +92,12 @@ const pageDescription = `All blog posts tagged with ${tag}.`;
                   </time>
 
                   <h3 class="log-title">
-                    <a href={href}>{title}</a>
+                    <a href={href}>{post.title}</a>
                     {count && <span class="log-count">{count}</span>}
                   </h3>
 
-                  {isDefinition && (post as any).definition && (
-                    <blockquote class="log-quote"><p>{(post as any).definition.slice(0, 240)}{(post as any).definition.length > 240 ? '…' : ''}</p></blockquote>
-                  )}
-                  {!isDefinition && 'description' in post && (post as any).description && (
-                    <p class="log-desc">{(post as any).description}</p>
+                  {post.description && (
+                    <p class="log-desc">{post.description}</p>
                   )}
 
                   {post.tags && post.tags.length > 0 && (
@@ -254,23 +247,6 @@ const pageDescription = `All blog posts tagged with ${tag}.`;
     text-transform: uppercase;
     letter-spacing: var(--tracking-wide);
     color: var(--text-secondary);
-  }
-
-  /* Definition preview — same left-rule quote as the dictionary index */
-  .log-quote {
-    width: fit-content;
-    margin: 0 0 var(--space-sm) 0;
-    padding: var(--space-md);
-    background: var(--bg-secondary);
-    border-left: 3px solid var(--accent-primary);
-    color: var(--text-primary);
-  }
-  .log-quote p {
-    font-family: var(--font-body);
-    font-size: var(--text-base);
-    line-height: var(--leading-relaxed);
-    max-width: 68ch;
-    margin: 0;
   }
 
   .log-desc {
