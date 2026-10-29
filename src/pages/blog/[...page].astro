@@ -16,7 +16,6 @@ import ImageGallery from '@components/modals/ImageGallery.astro';
 import AlbumMosaic from '@components/blog/AlbumMosaic.astro';
 import PostSlices from '@components/blog/slices/PostSlices.astro';
 import DefinitionBeat from '@components/blog/DefinitionBeat.astro';
-import UnifiedRecord from '@components/blog/UnifiedRecord.astro';
 import { loadDataPool, resolveSlices } from '@lib/slices';
 
 export const getStaticPaths = (async () => {
@@ -133,6 +132,15 @@ const definitionOnly = (slug: string) => {
   return s.length === 1 && s[0].kind === 'definitions' ? s[0].definitions : null;
 };
 
+// Round 2: one made-up link beat in the latest quarter, to show the shape
+const feedPosts = (() => {
+  if (!demoLink) return posts;
+  const fake = { kind: 'post', slug: '__demo-link-beat', title: demoLink.title, publish_date: '2026-10-20', tags: demoLink.tags, body_markdown: '' } as any;
+  slicesBySlug.set(fake.slug, [{ kind: 'links', links: [demoLink] }]);
+  const i = posts.findIndex((p) => new Date(p.publish_date) < new Date('2026-10-20'));
+  return [...posts.slice(0, i), fake, ...posts.slice(i)];
+})();
+
 // Published link documents; feeds the sidebar "Links" card
 const totalLinks = (await loadDataPool()).links.length;
 
@@ -203,14 +211,7 @@ const jsonLd = {
                 posts here while editing. Latest quarter only: that is where a new
                 post would land. */}
             <div class="log-feed" data-cms-list={isLatest ? 'blog_post' : undefined}>
-              {posts.map((post) => (<>
-                {demoLink && post.slug === 'rebecca-powell-blog' && (
-                  <article class="log-record" data-type="post" data-proto="beat">
-                    <div class="record-body">
-                      <UnifiedRecord kind="link-beat" href={demoLink.url} date="2026-10-20" link={demoLink} tags={demoLink.tags} />
-                    </div>
-                  </article>
-                )}
+              {feedPosts.map((post) => (<>
                 {(() => {
                 // Blog posts (not gateway-synced dumps/outings) can be edited
                 // inline from the index. data-cms-id scopes which document a
@@ -225,23 +226,12 @@ const jsonLd = {
                 const postHref = `/blog/${post.slug}`;
                 const protoDefs = PROTOTYPE_FEED ? definitionOnly(post.slug) : null;
                 const protoLink = UNIFIED ? linkOnly(post.slug) : null;
-                if (UNIFIED && (protoDefs || protoLink) && !body.trim()) return (
-                  <article class="log-record" data-type="post" data-proto="beat">
-                    <div class="record-body">
-                      <UnifiedRecord kind={protoDefs ? 'def-beat' : 'link-beat'} href={postHref} date={post.publish_date as any}
-                        tags={post.tags} definitions={protoDefs ?? []} link={protoLink ?? undefined} />
-                    </div>
-                  </article>
-                );
-                if (UNIFIED && protoDefs && protoDefs.length === 1) return (
-                  <article class="log-record" data-type="post">
-                    <div class="record-body">
-                      <UnifiedRecord kind="def-post" href={postHref} date={post.publish_date as any}
-                        description={(post as any).description} body={showsFullBody ? body : previewMarkdown(body)} more={!showsFullBody}
-                        tags={post.tags} definitions={protoDefs} />
-                    </div>
-                  </article>
-                );
+                // Round 2: one card for everything. A definition post's title is the
+                // quoted term; a link post's title links out; a post with no body
+                // (a beat) drops the tagline and shows only what it picked.
+                const isBeat = UNIFIED && !!(protoDefs || protoLink) && !body.trim();
+                const defTitle = UNIFIED && protoDefs && (protoDefs.length === 1 || isBeat) ? protoDefs : null;
+                const titleText = defTitle ? defTitle.map((x) => `“${x.term}”`).join(' / ') : post.title;
                 if (protoDefs && !UNIFIED) return (
                   <article class="log-record" data-type="post" data-proto={PROTOTYPE_FEED}>
                     <div class="record-body">
@@ -276,7 +266,7 @@ const jsonLd = {
                         class="post-title-link"
                         {...(protoLink ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                       >
-                        <span data-cms-field="title">{post.title}</span>{protoLink && <span class="post-title-ext" aria-label="external link"> ↗</span>}
+                        <span data-cms-field="title">{titleText}</span>{protoLink && <span class="post-title-ext" aria-label="external link"> ↗</span>}
                       </a>
                       {linkCount > 0 && (
                         <Badge variant="tertiary" size="sm" class="collection-badge">{linkCount} links</Badge>
@@ -320,7 +310,15 @@ const jsonLd = {
                       </div>
                     )}
 
-                    {'description' in post && (post as any).description && (
+                    {defTitle && defTitle.map((x) => (
+                      <blockquote class="post-quote" set:html={(defTitle.length > 1 ? `<strong>${x.term}</strong>: ` : '') + marked.parseInline(x.definition)} />
+                    ))}
+
+                    {isBeat && protoLink?.description && (
+                      <div class="post-content-preview full-content"><p>{protoLink.description}</p></div>
+                    )}
+
+                    {!isBeat && 'description' in post && (post as any).description && (
                       <p class="post-description" data-cms-field="description">
                         {(post as any).description}
                       </p>
@@ -330,7 +328,7 @@ const jsonLd = {
                         Editorial cards mark the preview as the body field, gated
                         behind an Expand toggle so the whole body is editable
                         inline without bloating the card for readers. */}
-                    {excerpt ? (
+                    {isBeat ? null : excerpt ? (
                       <div class="post-excerpt-preview" set:html={excerpt}
                         data-cms-field={isEditorial ? 'body_markdown' : undefined}
                         data-cms-collapsible={isEditorial ? '' : undefined}
@@ -344,13 +342,17 @@ const jsonLd = {
                     )}
 
                     {/* Right under the cut, so the way on is where the text stops */}
-                    {!showsFullBody && (
+                    {!isBeat && !showsFullBody && (
                       <a href={postHref} class="read-more">
                         Continue reading →
                       </a>
                     )}
 
-                    {!protoLink && <PostSlices slices={slicesBySlug.get(post.slug) ?? []} compact />}
+                    {UNIFIED && protoDefs && !defTitle && protoDefs.map((x) => (
+                      <blockquote class="post-quote" set:html={`<strong><a href="/blog/dictionary/${x.slug}">${x.term}</a></strong>: ` + marked.parseInline(x.definition)} />
+                    ))}
+
+                    {!protoLink && !(UNIFIED && protoDefs) && <PostSlices slices={slicesBySlug.get(post.slug) ?? []} compact />}
 
                     {post.tags && post.tags.length > 0 && (
                       <div class="post-tags">
@@ -1199,7 +1201,20 @@ const jsonLd = {
     border-top: 1px solid var(--gradient-primary-subtle);
   }
   .log-record:first-child { border-top: none; padding-top: var(--space-sm); }
-  .log-record[data-proto="beat"] { padding: var(--space-md) 0; }
+  /* Round 2: a picked definition, right under the title */
+  .log-record .post-quote {
+    margin: 0 0 var(--space-md) 0;
+    padding: var(--space-sm) var(--space-md);
+    border-left: 3px solid var(--accent-secondary);
+    background: var(--gradient-primary-subtle);
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    line-height: var(--leading-relaxed);
+    color: var(--text-primary);
+    max-width: 68ch;
+  }
+  .log-record .post-quote :global(a) { color: inherit; }
+  .log-record .post-quote :global(a):hover { color: var(--accent-primary); }
   .record-date-link { text-decoration: none; color: inherit; }
   .record-date-link[href]:hover .record-date { color: var(--accent-primary); text-decoration: underline; }
   .post-title-ext { font-family: var(--font-body); font-size: 0.7em; color: var(--text-secondary); }
