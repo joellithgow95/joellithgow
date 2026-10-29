@@ -1,13 +1,9 @@
 // joellithgow.com on Cloudflare Workers static assets: no Worker script, just the
 // Astro build in dist/. Deployed by .github/workflows/deploy-site.yml.
 //
-// Custom domains are attached at DNS cutover (see the Leave GoDaddy plan in
-// jlithgow-ops): until then the Worker is only on workers.dev and Netlify serves
-// joellithgow.com. Cutover adds:
-//   "routes": [
-//     { "pattern": "joellithgow.com", "custom_domain": true },
-//     { "pattern": "www.joellithgow.com", "custom_domain": true }
-//   ]
+// Custom domains (see the Leave GoDaddy plan in jlithgow-ops): Cloudflare creates the
+// proxied DNS records itself, and refuses while an `@` or `www` record already exists,
+// so delete those first.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "joellithgow",
@@ -18,6 +14,10 @@
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "404-page"
   },
+  "routes": [
+    { "pattern": "joellithgow.com", "custom_domain": true },
+    { "pattern": "www.joellithgow.com", "custom_domain": true }
+  ],
   "workers_dev": true,
   // No branch previews: only main deploys.
   "preview_urls": false
