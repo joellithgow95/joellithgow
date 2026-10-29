@@ -15,6 +15,7 @@ import Video from '@components/ui/Video.astro';
 import ImageGallery from '@components/modals/ImageGallery.astro';
 import AlbumMosaic from '@components/blog/AlbumMosaic.astro';
 import PostSlices from '@components/blog/slices/PostSlices.astro';
+import DefinitionBeat from '@components/blog/DefinitionBeat.astro';
 import { loadDataPool, resolveSlices } from '@lib/slices';
 
 export const getStaticPaths = (async () => {
@@ -110,6 +111,16 @@ const slicesBySlug = new Map(
   ),
 );
 
+// PROTOTYPE: a post whose only slice is definition_picks gets the layout
+// named by PROTOTYPE_FEED (beat | entry | kicker). Unset = today's card.
+const PROTOTYPE_FEED = process.env.PROTOTYPE_FEED as 'beat' | 'entry' | 'kicker' | undefined;
+// Titles Joel floated in the thread, to show the kicker layout with a take as the title
+const PROTOTYPE_TITLES: Record<string, string> = { 'judas-pig': 'Can a Pig Be a Narc?' };
+const definitionOnly = (slug: string) => {
+  const s = slicesBySlug.get(slug) ?? [];
+  return s.length === 1 && s[0].kind === 'definitions' ? s[0].definitions : null;
+};
+
 // Published link documents; feeds the sidebar "Links" card
 const totalLinks = (await loadDataPool()).links.length;
 
@@ -192,6 +203,23 @@ const jsonLd = {
                 // shows its opening and links to its page.
                 const showsFullBody = !excerpt && SHORT_BODY_CHARS >= body.length;
                 const postHref = `/blog/${post.slug}`;
+                const protoDefs = PROTOTYPE_FEED ? definitionOnly(post.slug) : null;
+                if (protoDefs) return (
+                  <article class="log-record" data-type="post" data-proto={PROTOTYPE_FEED}>
+                    <div class="record-body">
+                      <DefinitionBeat
+                        variant={PROTOTYPE_FEED!}
+                        href={postHref}
+                        date={post.publish_date as any}
+                        title={PROTOTYPE_TITLES[post.slug] ?? post.title}
+                        description={(post as any).description}
+                        body={body}
+                        tags={post.tags}
+                        definitions={protoDefs}
+                      />
+                    </div>
+                  </article>
+                );
                 return (
                 <article
                   class="log-record"
@@ -1132,6 +1160,7 @@ const jsonLd = {
     border-top: 1px solid var(--gradient-primary-subtle);
   }
   .log-record:first-child { border-top: none; padding-top: var(--space-sm); }
+  .log-record[data-proto="beat"] { padding: var(--space-md) 0; }
 
   /* ---- Record body: neutralize old brutalist card chrome ---- */
   .log-record .featured-post-card {
