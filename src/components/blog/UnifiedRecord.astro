@@ -1,0 +1,166 @@
+---
+/**
+ * PROTOTYPE (round 2) — one set of feed rules for every post, chosen with
+ * PROTOTYPE_FEED=unified. The title's link says where it goes:
+ *
+ * - def-beat:  a post with no body whose only slice picks definitions. A tight
+ *              entry: "Term" in quotes, linked to the dictionary, and the
+ *              definition under it. No tagline, no note.
+ * - link-beat: a post with no body whose only slice picks one link. The link's
+ *              title is the headline, linked out with ↗, and its description.
+ * - def-post:  a post with a body about one definition. "Term" as the title,
+ *              linked to the post; the definition right under it; the note.
+ */
+import { marked } from 'marked';
+import type { Entry, Link } from '@lib/slices';
+
+export interface Props {
+  kind: 'def-beat' | 'link-beat' | 'def-post';
+  href: string;
+  date: string;
+  description?: string;
+  body?: string;
+  tags?: string[];
+  definitions?: Entry[];
+  link?: Link;
+  /** The note is cut short; link to the rest */
+  more?: boolean;
+}
+
+const { kind, href, date, description, body = '', tags = [], definitions = [], link, more = false } = Astro.props;
+const d = new Date(date);
+const dateLabel = d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+const shortDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+const note = body.trim() ? (marked.parse(body) as string) : '';
+const quoted = (t: string) => `“${t}”`;
+const inline = (md: string) => marked.parseInline(md) as string;
+---
+
+{(kind === 'def-beat' || kind === 'link-beat') && (
+  <div class="beat">
+    <div class="beat-meta">
+      <span class="beat-kind">{kind === 'def-beat' ? 'Defined' : 'Link'}</span>
+      <a href={href} class="beat-date" title="Permalink">{shortDate}</a>
+    </div>
+    <div class="beat-main">
+      {kind === 'def-beat' && definitions.map((x) => (
+        <div class="beat-item">
+          <a href={`/blog/dictionary/${x.slug}`} class="beat-title">{quoted(x.term)}</a>
+          <p class="def-block" set:html={inline(x.definition)} />
+        </div>
+      ))}
+      {kind === 'link-beat' && link && (
+        <div class="beat-item">
+          <a href={link.url} class="beat-title" target="_blank" rel="noopener noreferrer">
+            {link.title}<span class="ext" aria-label="external link"> ↗</span>
+          </a>
+          {link.description && <p class="beat-desc">{link.description}</p>}
+        </div>
+      )}
+      {tags.length > 0 && (
+        <p class="beat-tags">{tags.map((t) => <a href={`/blog/tags/${t}`}>#{t}</a>)}</p>
+      )}
+    </div>
+  </div>
+)}
+
+{kind === 'def-post' && (
+  <div class="dpost">
+    <a href={href} class="record-date">{dateLabel}</a>
+    <h2 class="dpost-title"><a href={href}>{definitions.map((x) => quoted(x.term)).join(' / ')}</a></h2>
+    {definitions.map((x) => (
+      <p class="def-block def-block--lead">
+        <Fragment set:html={inline(x.definition)} />
+        <a href={`/blog/dictionary/${x.slug}`} class="def-src">dictionary →</a>
+      </p>
+    ))}
+    {description && <p class="dpost-desc">{description}</p>}
+    {note && <div class="dpost-note" set:html={note} />}
+    {more && <a href={href} class="dpost-more">Continue reading →</a>}
+    {tags.length > 0 && (
+      <p class="beat-tags">{tags.map((t) => <a href={`/blog/tags/${t}`}>#{t}</a>)}</p>
+    )}
+  </div>
+)}
+
+<style>
+  @import '../../styles/tokens.css';
+
+  a { color: inherit; }
+
+  /* The definition style Joel liked: left rule, quiet text */
+  .def-block {
+    margin: var(--space-xs) 0 0;
+    padding-left: var(--space-md);
+    border-left: 3px solid var(--accent-secondary);
+    font-family: var(--font-body);
+    line-height: var(--leading-relaxed);
+    color: var(--text-secondary);
+  }
+  .def-block--lead {
+    margin: 0 0 var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--gradient-primary-subtle);
+    color: var(--text-primary);
+  }
+  .def-src { margin-left: var(--space-sm); font-family: var(--font-mono); font-size: var(--text-xs); color: var(--accent-secondary); white-space: nowrap; }
+
+  /* ---- beats ---- */
+  .beat { display: grid; grid-template-columns: 7rem 1fr; gap: var(--space-md); max-width: 68ch; }
+  .beat-meta { display: flex; flex-direction: column; gap: 2px; padding-top: 4px; }
+  .beat-kind {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wide);
+    color: var(--accent-secondary);
+    font-weight: var(--font-semibold);
+  }
+  .beat-date { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-secondary); text-decoration: none; }
+  .beat-date:hover { color: var(--accent-primary); text-decoration: underline; }
+  .beat-item + .beat-item { margin-top: var(--space-sm); }
+  .beat-title {
+    font-family: var(--font-display);
+    font-weight: var(--font-semibold);
+    font-size: var(--text-xl);
+    line-height: var(--leading-tight);
+    color: var(--text-primary);
+    text-decoration: none;
+  }
+  .beat-title:hover { color: var(--accent-primary); }
+  .ext { font-family: var(--font-body); font-size: 0.8em; color: var(--text-secondary); }
+  .beat-desc { margin: var(--space-xs) 0 0; font-family: var(--font-body); line-height: var(--leading-relaxed); color: var(--text-secondary); }
+  .beat-tags { margin: var(--space-sm) 0 0; display: flex; flex-wrap: wrap; gap: var(--space-sm); font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-secondary); }
+  .beat-tags a { text-decoration: none; }
+  .beat-tags a:hover { color: var(--accent-primary); }
+  @media (max-width: 600px) {
+    .beat { grid-template-columns: 1fr; gap: var(--space-xs); }
+    .beat-meta { flex-direction: row; gap: var(--space-sm); }
+  }
+
+  /* ---- definition post ---- */
+  .dpost { max-width: 68ch; }
+  .record-date {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+    letter-spacing: var(--tracking-wide);
+    margin-bottom: var(--space-xs);
+    text-decoration: none;
+  }
+  .dpost-title {
+    font-family: var(--font-display);
+    font-weight: var(--font-semibold);
+    font-size: var(--heading-md);
+    line-height: var(--leading-tight);
+    margin: 0 0 var(--space-sm);
+  }
+  .dpost-title a { text-decoration: none; color: var(--text-primary); }
+  .dpost-title a:hover { color: var(--accent-primary); }
+  .dpost-desc { font-style: italic; color: var(--text-secondary); margin: 0 0 var(--space-sm); }
+  .dpost-note { font-family: var(--font-body); line-height: var(--leading-relaxed); color: var(--text-secondary); }
+  .dpost-more { display: inline-block; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--accent-primary); text-decoration: none; margin-bottom: var(--space-sm); }
+  .dpost-note :global(a) { color: var(--accent-primary); }
+  .dpost-note :global(p) { margin: 0 0 var(--space-sm); }
+</style>
