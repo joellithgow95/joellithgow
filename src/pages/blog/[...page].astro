@@ -189,17 +189,6 @@ const jsonLd = {
                       {new Date(post.publish_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
                     </time>
                   <Card variant="flat" as="article" class="featured-post-card" data-post-type={post.kind}>
-                    <time
-                      datetime={new Date(post.publish_date).toISOString()}
-                      class="post-date"
-                    >
-                      {new Date(post.publish_date).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
-                    </time>
-
                     <h2 class="post-title">
                       <a
                         href={`/blog/${post.slug}`}
@@ -678,15 +667,6 @@ const jsonLd = {
     transform: scale(1.05);
     box-shadow: var(--shadow-xl) var(--accent-secondary);
     z-index: 5;
-  }
-
-  .post-date {
-    display: block;
-    color: var(--text-secondary);
-    font-family: var(--font-family);
-    font-size: var(--text-sm);
-    font-weight: var(--font-medium);
-    letter-spacing: var(--tracking-wide);
   }
 
   .post-title {
@@ -1178,9 +1158,6 @@ const jsonLd = {
     background: none;
     gap: var(--space-sm);
   }
-
-  /* Drop the type-specific inline dates/headers — the eyebrow below covers it */
-  .log-record .post-date,
 
   /* Date eyebrow above each post title */
   .log-record .record-date {
