@@ -8,7 +8,6 @@ from starlette_cms import (
     BoolField,
     DateField,
     JSONField,
-    LinksField,
     ListField,
     NumberField,
     RichTextField,
@@ -56,15 +55,6 @@ def register_documents(cms: CMS) -> None:
                 "after full/ is yours to pick), because the site is static and a relative src would "
                 "resolve against Netlify. Find the asset key in the media library at /media/admin, "
                 "or with the media MCP's list_assets."
-            ),
-        )
-        # title and date_added are required by the site's Zod schema (src/content/config.ts)
-        links: list | None = LinksField(
-            required_keys=["title", "date_added"],
-            help_text=(
-                "For a post that is a list of links: {url, title, description, date_added} each, "
-                "shown under the body. Items also appear on /blog/links and the tag pages. A post "
-                "about one link puts that link inline in the body instead."
             ),
         )
         tags: list | None = TagsField()

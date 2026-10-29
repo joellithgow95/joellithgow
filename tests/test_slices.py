@@ -164,3 +164,12 @@ async def test_link_date_added_must_be_a_date(client):
     assert (await _create(client, "link", body)).status_code == 422
     body["date_added"] = "2026-10-01"
     assert (await _create(client, "link", body)).status_code == 201
+
+
+async def test_a_post_still_carrying_links_saves_without_them(client):
+    # The embedded links field is gone (links are documents now); a post saved
+    # with the old key, even empty, keeps working and the key is not stored.
+    body = {"title": "T", "description": "d", "publish_date": "2026-10-28", "links": []}
+    resp = await _create(client, "blog_post", body)
+    assert resp.status_code == 201, resp.text
+    assert "links" not in resp.json()["body"]

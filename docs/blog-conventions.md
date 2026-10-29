@@ -24,7 +24,6 @@ There is one kind of post. What it looks like follows from what it holds:
 - On the feed, a post with an `excerpt` shows the excerpt. Without one, a short body (up to about 800 characters of Markdown) shows in full, and a longer one is cut off with "Continue reading". So a short thought needs no excerpt, and a long piece should have one.
 - **Data a post shows goes in `data`, as slices** (`cms/slices.py`). A slice says which songs, observations, definitions or links to show; the site looks them up when it builds and draws them under the body (a compact version on the feed card). Kinds: `music_range` / `nature_range` (`{from_date, to_date}`, YYYY-MM-DD, both included), `music_picks` / `nature_picks` / `definition_picks` / `link_picks` (`{refs: [document ids]}`, shown in that order) and `links_by_tag` (`{tag}`, every `link` document with that tag). The CMS refuses a bad slice on save. A month of music is one `music_range`; "the birds from this trip" is a `nature_picks`; a reading list is a `links_by_tag`.
 - A slice is a pointer, not a copy: a range picks up songs synced after the post was written, and an edit to a definition or link shows in every post that picks it.
-- The `links` field (a list of `{url, title, description, date_added}` written into the post) is the older way to make a list of links. It still renders under the body, on `/blog/links` and the tag pages. New lists should be `link` documents shown through a slice instead; moving the existing embedded links over is in progress (see *In progress*).
 
 `post_type` and `has_detail_page` are gone. The CMS drops them if an old post still carries them the next time it is saved; don't set them.
 
@@ -63,8 +62,6 @@ A thought about one link still puts that link inline in its body (see *Who write
 
 These are decided but not finished, so check the code before relying on them:
 
-- **Embedded links to link documents.** Moving the links in posts' `links` fields (mostly the old collection posts) into `link` documents, and those posts onto `links_by_tag` / `link_picks` slices.
-- **Editor pickers.** Choosing songs, observations, definitions and links for a slice in the editor without typing document ids. Until then, use the MCP tools (`list_documents` to find ids) or type the ids into the slice.
 - **Definitions off the feed.** Dropping the feed card that every definition gets today, so a definition reaches the feed only through a post (see *Definitions*).
 - **Outing suggestions.** A helper that proposes a draft trip post from new sightings near each other. Not started.
 
@@ -74,7 +71,7 @@ Joel writes his posts. He wants very little to no AI-written prose in them, and 
 
 - **Body: his words.** When Joel gives you the text (a "short thought on a link" is the common case), the body is that text. Fix obvious typos and punctuation only. Don't rephrase, expand, add a summary of the source, add a conclusion, or leave `[JOEL: ...]` placeholders. If a word looks like a typo but might be a joke or pun, keep it and ask, or flag it in your reply.
 - **Tagline: the one place an agent writes.** The `description` field is shown in the editor as **Tagline**. It is the short line under the title (and the page meta description and RSS summary). If Joel doesn't give one, write one: short, with a take, in the register of "Is this the formalization of commercial world-view classifier models?" rather than a literal restatement of the post. He may tune this over time.
-- **A thought about one link:** the link goes inline in the body (his text, then "Via [source title](url)"), with no slice and an empty `links`. A list of links is `link` documents shown through a slice (see *Links*).
+- **A thought about one link:** the link goes inline in the body (his text, then "Via [source title](url)"), with no slice. A list of links is `link` documents shown through a slice (see *Links*).
 - **Title, excerpt and tags** are small metadata, not prose: keep them plain and factual, reuse existing tags (see *Tags*), and say what you chose so he can change it.
 
 ### When Joel explicitly asks for a drafted piece
