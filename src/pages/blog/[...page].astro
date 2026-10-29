@@ -71,23 +71,37 @@ const currentBlockIndex = blockStarts.indexOf(blockKey(Number(currentKey.split('
 // Get all posts for sidebar stats (need full collection, not just current page)
 const allPosts = await fetchBlogPosts();
 
-// Helper function to truncate HTML content to first N paragraphs
-function truncateContent(html: string, maxParagraphs: number = 3): { content: string; isTruncated: boolean } {
-  const paragraphs: string[] = [];
-
-  // Simple regex-based approach to extract first few paragraphs
-  const pRegex = /<p[^>]*>.*?<\/p>/gs;
-  const matches = html.match(pRegex) || [];
-
-  const truncated = matches.slice(0, maxParagraphs).join('');
-  const isTruncated = matches.length > maxParagraphs;
-
-  return { content: truncated, isTruncated };
-}
-
 // A post whose Markdown body is at most this long, with no excerpt, shows in
 // full on its feed card; a longer one is cut off with "Continue reading".
 const SHORT_BODY_CHARS = 800;
+
+// The opening of a long post for its feed card: whole blocks (paragraphs,
+// lists, quotes) up to about PREVIEW_CHARS of Markdown, so the card ends on a
+// paragraph rather than mid-line. Code blocks and image-only paragraphs are
+// left out (the card hides them anyway), and a first paragraph too long for
+// the budget is cut at its last sentence that fits.
+const PREVIEW_CHARS = 600;
+function previewMarkdown(md: string): string {
+  const blocks = marked.lexer(md).filter(
+    (t) => t.type !== 'space' && t.type !== 'code' && t.type !== 'hr'
+      && !(t.type === 'paragraph' && /^\s*(!\[[^\]]*\]\([^)]*\)\s*)+$/.test(t.raw)),
+  );
+  const kept: string[] = [];
+  let used = 0;
+  for (const t of blocks) {
+    if (kept.length && used + t.raw.length > PREVIEW_CHARS) break;
+    kept.push(t.raw.trim());
+    used += t.raw.length;
+  }
+  // A heading with nothing after it reads as a dangling title
+  while (kept.length > 1 && /^#{1,6}\s/.test(kept[kept.length - 1])) kept.pop();
+  if (kept.length === 1 && used > PREVIEW_CHARS * 1.5) {
+    const head = kept[0].slice(0, PREVIEW_CHARS);
+    const cut = Math.max(head.lastIndexOf('. '), head.lastIndexOf('? '), head.lastIndexOf('! '));
+    kept[0] = cut > PREVIEW_CHARS / 3 ? head.slice(0, cut + 1) : `${head.slice(0, head.lastIndexOf(' '))}…`;
+  }
+  return kept.join('\n\n');
+}
 
 // Each post's slices (ADR 026), resolved once for its feed card.
 const slicesBySlug = new Map(
@@ -174,9 +188,10 @@ const jsonLd = {
                 const body = ('body_markdown' in post ? (post as any).body_markdown : null) ?? '';
                 const excerpt = ('excerpt' in post && (post as any).excerpt) || '';
                 const linkCount = ('links' in post && (post as any).links?.length) || 0;
-                // A short post shows its whole body on the card; a long one is
-                // cut off and links to its page.
+                // A short post shows its whole body on the card; a long one
+                // shows its opening and links to its page.
                 const showsFullBody = !excerpt && SHORT_BODY_CHARS >= body.length;
+                const postHref = `/blog/${post.slug}`;
                 return (
                 <article
                   class="log-record"
@@ -191,7 +206,7 @@ const jsonLd = {
                   <Card variant="flat" as="article" class="featured-post-card" data-post-type={post.kind}>
                     <h2 class="post-title">
                       <a
-                        href={`/blog/${post.slug}`}
+                        href={postHref}
                         class="post-title-link"
                       >
                         <span data-cms-field="title">{post.title}</span>
@@ -255,10 +270,17 @@ const jsonLd = {
                       />
                     ) : (
                       <div class:list={['post-content-preview', { 'full-content': showsFullBody }]}
-                        set:html={marked.parse(body)}
+                        set:html={marked.parse(showsFullBody ? body : previewMarkdown(body))}
                         data-cms-field={isEditorial ? 'body_markdown' : undefined}
                         data-cms-collapsible={isEditorial ? '' : undefined}
                       />
+                    )}
+
+                    {/* Right under the cut, so the way on is where the text stops */}
+                    {!showsFullBody && (
+                      <a href={postHref} class="read-more">
+                        Continue reading →
+                      </a>
                     )}
 
                     <PostSlices slices={slicesBySlug.get(post.slug) ?? []} compact />
@@ -271,17 +293,9 @@ const jsonLd = {
                       </div>
                     )}
 
-                    {('reading_time' in post && (post as any).reading_time || !showsFullBody) && (
+                    {'reading_time' in post && (post as any).reading_time && (
                       <div class="post-meta">
-                        {'reading_time' in post && (post as any).reading_time && (
-                          <span class="post-reading-time">{(post as any).reading_time} min read</span>
-                        )}
-
-                        {!showsFullBody && (
-                          <Button href={`/blog/${post.slug}`} variant="primary" size="md">
-                            {excerpt ? 'Read the full story →' : 'Continue reading →'}
-                          </Button>
-                        )}
+                        <span class="post-reading-time">{(post as any).reading_time} min read</span>
                       </div>
                     )}
                   </Card>
@@ -750,9 +764,6 @@ const jsonLd = {
     font-size: var(--text-base);
     line-height: var(--leading-relaxed);
     margin: var(--space-lg) 0;
-    position: relative;
-    max-height: 400px;
-    overflow: hidden;
   }
 
   .post-excerpt-preview {
@@ -761,27 +772,6 @@ const jsonLd = {
     font-size: var(--text-base);
     line-height: var(--leading-relaxed);
     margin: var(--space-lg) 0;
-  }
-
-  .post-content-preview::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 80px;
-    background: linear-gradient(to bottom, transparent, var(--bg-secondary));
-    pointer-events: none;
-  }
-
-  /* Full content for short posts */
-  .post-content-preview.full-content {
-    max-height: none;
-    overflow: visible;
-  }
-
-  .post-content-preview.full-content::after {
-    display: none;
   }
 
   /* Style markdown content in preview */
@@ -1035,7 +1025,6 @@ const jsonLd = {
     }
 
     .post-content-preview {
-      max-height: 300px;
       font-size: var(--text-sm);
     }
 
@@ -1069,10 +1058,6 @@ const jsonLd = {
 
     .post-excerpt {
       font-size: var(--text-sm);
-    }
-
-    .post-content-preview {
-      max-height: 250px;
     }
 
     .pagination {
@@ -1241,6 +1226,23 @@ const jsonLd = {
     color: var(--accent-primary);
     text-decoration: underline;
     transform: none;
+  }
+
+  /* "Continue reading" sits right under the cut, pulled up into the
+     preview's bottom margin so it reads as the end of the text */
+  .log-record .read-more {
+    display: inline-block;
+    margin: calc(var(--space-sm) - var(--space-lg)) 0 var(--space-lg);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    color: var(--accent-primary);
+    text-decoration: none;
+  }
+  .log-record .read-more:hover { text-decoration: underline; }
+  .log-record .read-more:focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
   }
 
   .log-record .post-description {
