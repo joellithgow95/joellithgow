@@ -31,7 +31,7 @@ There is one kind of post. What it looks like follows from what it holds:
 
 - **Songs and observations.** The `spotify-likes` and `inaturalist-observations` gateways write one document per liked song and per sighting, published, with no page or card of their own. The `gateways-daily` CronJob (jlithgow-ops) syncs both every morning at 04:00 Pacific; `sync_gateway` (gateway MCP) or the `/gateways` admin page runs one by hand. `/blog/music` and `/blog/nature` browse all of it by month and by day.
 - **The monthly music post.** At 09:00 Pacific on the 1st, the `music-month` CronJob runs `cms.compose_music_month`, which makes last month's "What I've been listening to — <month>" as a **draft** `blog_post` in Staging, holding one `music_range`. It never syncs and never publishes: open it, add words if you like, and publish Staging.
-- **Outings are a post's choice.** No gateway groups sightings into outings any more. To write about a trip, make a `blog_post` with a `nature_picks` (the sightings you want) or a `nature_range` (every sighting in those days).
+- **Outings are a post's choice.** No gateway groups sightings into outings any more. To write about a trip, make a `blog_post` with a `nature_picks` (the sightings you want) or a `nature_range` (every sighting in those days). Joel writes these himself: nothing suggests or drafts outing posts, and none is planned (ADR 026 §4's suggestion helper was dropped on 2026-10-29).
 - The old `spotify_liked_dump` months and `inaturalist_outing` posts were converted to ordinary `blog_post`s with slices on the same slugs (`spotify-dump-YYYY-MM`, `nature-outing-YYYY-MM-DD`), and those types and their gateways are gone.
 
 ## Definitions
@@ -57,12 +57,6 @@ One definition can be picked by many posts, so a later post can pick it again (o
 A `link` document is one URL, stored once, with a `title`, `description`, `date_added` and `tags`. Tags are plain topic tags, and some name a list, for example `developer-blog`, `inspo`, `friends` or `reading`. A post shows links with `link_picks` (these, in this order) or `links_by_tag` (every link with this tag, so the list grows when a new link is tagged). Links sit in the main content list in the editor, not under **Data**.
 
 A thought about one link still puts that link inline in its body (see *Who writes what*); a `link` document is for a link worth listing.
-
-## In progress
-
-These are decided but not finished, so check the code before relying on them:
-
-- **Outing suggestions.** A helper that proposes a draft trip post from new sightings near each other. Not started.
 
 ## Who writes what
 
