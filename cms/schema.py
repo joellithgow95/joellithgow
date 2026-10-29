@@ -160,9 +160,24 @@ def register_documents(cms: CMS) -> None:
 
     @cms.document("definition")
     class DefinitionDocument:
-        term: str = TextField(required=True, max_length=500)
+        # Dictionary data: a term, what it means and where that comes from. No
+        # feed card of its own; a post shows it through a definition_picks slice,
+        # and it keeps a page under /blog/dictionary/<slug>.
+        term: str = TextField(required=True, max_length=500, help_text="The word or phrase being defined.")
         publish_date: str = TextField(required=True)                    # ISO 8601
-        definition: str = TextField(required=True)                      # markdown — the actual definition
-        personal_notes: str = TextField()                               # markdown — Joel's thoughts/context
-        sources: list | None = JSONField()                              # list[Source] — mix of links + text citations
+        definition: str = TextField(
+            required=True,
+            help_text="What the term means, in Markdown. Factual and neutral: Joel's take goes in a post that picks this definition.",
+        )
+        personal_notes: str = TextField(
+            help_text="Legacy: older definitions keep their notes here. Leave it empty on a new definition; the note belongs in the post that picks it.",
+        )
+        sources: list | None = JSONField(                              # list[Source] — mix of links + text citations
+            help_text=(
+                "The references, as a list. A link is {\"type\": \"link\", \"url\": ..., \"title\": ..., "
+                "\"description\": ...}; a citation is {\"type\": \"citation\", \"title\": ..., "
+                "\"attribution\": ..., \"quote\": ...}. Every entry needs its type or the site build fails. "
+                "Leave it empty rather than inventing a source."
+            ),
+        )
         tags: list | None = TagsField()
