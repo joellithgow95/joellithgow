@@ -242,21 +242,26 @@ const jsonLd = {
                   data-cms-type={isEditorial ? 'blog_post' : undefined}
                 >
                   <div class="record-body">
-                    {!isBeat && <a href={postHref} class="record-date-link"><time class="record-date" datetime={new Date(post.publish_date).toISOString()}>
+                    {!isBeat && <time class="record-date" datetime={new Date(post.publish_date).toISOString()}>
                       {new Date(post.publish_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
-                    </time></a>}
+                    </time>}
                   <Card variant="flat" as="article" class="featured-post-card" data-post-type={post.kind}>
                     <h2 class="post-title">
                       {isBeat && defTitle ? (
                         <span class="post-title-text">{titleMarkup}</span>
                       ) : (
+                      pickedLink ? (
                       <a
-                        href={pickedLink ? pickedLink.url : postHref}
+                        href={pickedLink.url}
                         class="post-title-link"
-                        {...(pickedLink ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                        target="_blank"
+                        rel="noopener noreferrer"
                       >
-                        <span data-cms-field={defTitle ? undefined : 'title'}>{titleMarkup}</span>{pickedLink && <span class="post-title-ext" aria-label="external link"> ↗</span>}
+                        <span>{titleMarkup}</span><span class="post-title-ext" aria-label="external link"> ↗</span>
                       </a>
+                      ) : (
+                        <span class="post-title-text" data-cms-field={defTitle ? undefined : 'title'}>{titleMarkup}</span>
+                      )
                       )}
                       {linkCount > 0 && (
                         <Badge variant="tertiary" size="sm" class="collection-badge">{linkCount} links</Badge>
@@ -269,7 +274,7 @@ const jsonLd = {
                         {(() => {
                           const img = (post as any).image;
                           const isVideo = img.type === 'video';
-                          const linkHref = img.link || `/blog/${post.slug}`;
+                          const linkHref = img.link;
                           const isExternal = img.link?.startsWith('http');
 
                           const media = isVideo ? (

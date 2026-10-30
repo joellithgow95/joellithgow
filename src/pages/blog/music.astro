@@ -55,15 +55,23 @@ const pageDescription = "What I've been listening to: every liked song, month by
             {months.map((month) => (
               <article class="music-dump">
                 <h2 class="music-dump-title">
-                  {month.posts.length === 1 ? <a href={`/blog/${month.posts[0].slug}`}>{monthLabel(month.key)}</a> : monthLabel(month.key)}
+                  {monthLabel(month.key)}
                 </h2>
                 <AlbumMosaic songs={month.songs} />
                 <p class="music-dump-meta">
                   {month.songs.length} song{month.songs.length !== 1 ? 's' : ''}
-                  {month.posts.length > 1 && (
-                    <span> · in {month.posts.map((p, i) => <>{i > 0 && ', '}<a href={`/blog/${p.slug}`}>{p.title}</a></>)}</span>
-                  )}
                 </p>
+                <details class="music-dump-songs">
+                  <summary>All songs</summary>
+                  <ol>
+                    {month.songs.map((song) => (
+                      <li>
+                        {song.spotify_url ? <a href={song.spotify_url} target="_blank" rel="noopener noreferrer">{song.track_name}</a> : song.track_name}
+                        {song.artist_name && <span> · {song.artist_name}</span>}
+                      </li>
+                    ))}
+                  </ol>
+                </details>
               </article>
             ))}
           </div>
@@ -114,4 +122,8 @@ const pageDescription = "What I've been listening to: every liked song, month by
   .music-dump-meta { font-size: var(--text-xs); color: var(--text-secondary); margin: var(--space-xs) 0 0 0; }
   .music-dump-meta a { color: var(--text-secondary); }
   .music-dump-meta a:hover { color: var(--accent-primary); }
+  .music-dump-songs { margin-top: var(--space-xs); font-size: var(--text-sm); color: var(--text-secondary); }
+  .music-dump-songs summary { cursor: pointer; }
+  .music-dump-songs ol { margin: var(--space-xs) 0 0 0; padding-left: var(--space-lg); }
+  .music-dump-songs a { color: var(--text-primary); }
 </style>
