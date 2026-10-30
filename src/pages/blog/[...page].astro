@@ -116,7 +116,18 @@ const slicesBySlug = new Map(
 const PROTOTYPE_FEED = process.env.PROTOTYPE_FEED as 'beat' | 'entry' | 'kicker' | 'unified' | undefined;
 const UNIFIED = PROTOTYPE_FEED === 'unified';
 // Round 2: as if Joel had cleared the note on these, leaving just the definition
-const PROTOTYPE_EMPTY = new Set(UNIFIED ? ['diegetic-ui', 'judas-pig', 'bot-bash'] : []);
+const PROTOTYPE_EMPTY = new Set(UNIFIED ? ['diegetic-ui', 'judas-pig', 'bot-bash', 'meat-proxy'] : []);
+// A definition's credit, from its own sources: a link source links out with ↗,
+// a citation shows its attribution. Nothing for terms Joel coined (no sources).
+const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+const creditHtml = (d: any) => {
+  const parts = (d.sources ?? []).map((src: any) =>
+    src.type === 'link' && src.url
+      ? `<a href="${esc(src.url)}" target="_blank" rel="noopener noreferrer">${esc(src.title || src.url)}</a>&nbsp;↗`
+      : esc(src.attribution || src.title || ''),
+  ).filter(Boolean);
+  return parts.length ? `<span class="quote-credit">— ${parts.join(', ')}</span>` : '';
+};
 const linkOnly = (slug: string) => {
   const s = slicesBySlug.get(slug) ?? [];
   return s.length === 1 && s[0].kind === 'links' && !s[0].tag && s[0].links.length === 1 ? s[0].links[0] : null;
@@ -332,7 +343,7 @@ const jsonLd = {
                     )}
 
                     {defTitle && defTitle.map((x) => (
-                      <blockquote class="post-quote" set:html={(defTitle.length > 1 ? `<strong>${x.term}</strong>: ` : '') + marked.parseInline(x.definition)} />
+                      <blockquote class="post-quote" set:html={(defTitle.length > 1 ? `<strong>${x.term}</strong>: ` : '') + marked.parseInline(x.definition) + creditHtml(x)} />
                     ))}
 
                     {isBeat && protoLink?.description && (
@@ -370,7 +381,7 @@ const jsonLd = {
                     )}
 
                     {UNIFIED && protoDefs && !defTitle && protoDefs.map((x) => (
-                      <blockquote class="post-quote" set:html={`<strong><a href="/blog/dictionary/${x.slug}">${x.term}</a></strong>: ` + marked.parseInline(x.definition)} />
+                      <blockquote class="post-quote" set:html={`<strong><a href="/blog/dictionary/${x.slug}">${x.term}</a></strong>: ` + marked.parseInline(x.definition) + creditHtml(x)} />
                     ))}
 
                     {!protoLink && !(UNIFIED && protoDefs) && <PostSlices slices={slicesBySlug.get(post.slug) ?? []} compact />}
@@ -1263,6 +1274,13 @@ const jsonLd = {
     text-decoration-color: var(--accent-secondary);
   }
   .log-record .title-quote { color: var(--accent-primary); }
+  .log-record .post-quote :global(.quote-credit) {
+    display: block;
+    margin-top: var(--space-xs);
+    font-style: normal;
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+  }
   .record-date-link { text-decoration: none; color: inherit; }
   .record-date-link[href]:hover .record-date { color: var(--accent-primary); text-decoration: underline; }
   .post-title-ext { font-family: var(--font-body); font-size: 0.7em; color: var(--text-secondary); }
