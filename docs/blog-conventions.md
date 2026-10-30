@@ -21,11 +21,21 @@ Content is either a **post** (something Joel writes) or **data** (a record a pos
 There is one kind of post. What it looks like follows from what it holds:
 
 - Every post has its own page at `/blog/<slug>`.
-- On the feed, a post with an `excerpt` shows the excerpt. Without one, a short body (up to about 800 characters of Markdown) shows in full, and a longer one is cut off with "Continue reading". So a short thought needs no excerpt, and a long piece should have one.
+- On the feed, a post with an `excerpt` shows the excerpt. Without one, a short body (up to about 800 characters of Markdown) shows in full, and a longer one is cut short; its title leads to the rest. So a short thought needs no excerpt, and a long piece should have one. See *On the feed* for how the title and size follow from what a post holds.
 - **Data a post shows goes in `data`, as slices** (`cms/slices.py`). A slice says which songs, observations, definitions or links to show; the site looks them up when it builds and draws them under the body (a compact version on the feed card). Kinds: `music_range` / `nature_range` (`{from_date, to_date}`, YYYY-MM-DD, both included), `music_picks` / `nature_picks` / `definition_picks` / `link_picks` (`{refs: [document ids]}`, shown in that order) and `links_by_tag` (`{tag}`, every `link` document with that tag). The CMS refuses a bad slice on save. A month of music is one `music_range`; "the birds from this trip" is a `nature_picks`; a reading list is a `links_by_tag`.
 - A slice is a pointer, not a copy: a range picks up songs synced after the post was written, and an edit to a definition or link shows in every post that picks it.
 
 `post_type` and `has_detail_page` are gone. The CMS drops them if an old post still carries them the next time it is saved; don't set them.
+
+## On the feed
+
+There is one card, in two sizes. What a post holds decides which, so there is no setting for it:
+
+- **A beat** is a post with **no body** whose only slice picks definitions, or picks one link. It is small: a smaller title (the size of a subheading inside a post), less space around it, and no date, tagline or tags. A definition beat shows "Term" (red quote marks, not a link) and the definition under it; a link beat shows the link's title, linking out with ↗, and the link's description. Use one when Joel just wants the thing on the feed with nothing to say about it.
+- **Everything else is a full post**: date, a full-size title, tagline, body, tags.
+- **Titles are links** (underlined in blue). A post links to its own page, with three exceptions that follow from the slice: a post about **one definition** is titled with the quoted term instead of its `title`; a post whose only slice picks **one link** is titled with that link's title and links out with ↗ (the link list is not drawn, since the title is the link); and a definition beat's title is not a link.
+- **A picked definition** shows as an italic quote with a red rule. In a post that picks several, each starts with its term, linked to its dictionary page. Each ends with a credit line built from the definition's `sources`: a link source is shown by its `title` (edit it to change the label) and links out with ↗, a citation shows its `attribution`. A term Joel coined has no sources, so no credit.
+- A post's `title` still names it on its own page and in RSS, even when the feed titles it with a term.
 
 ## Collected data
 
@@ -41,13 +51,13 @@ A definition is dictionary data: the term, what it means, and where that comes f
 - `term` and `definition`: the factual definition, in Markdown. Keep it neutral.
 - `sources`: a list mixing `{type: "link", ...}` and `{type: "citation", ...}` entries. Every entry needs its `type` or the site build fails. Leave it empty rather than inventing a source.
 - `personal_notes`: leave it empty on new definitions; the take goes in the post. Older definitions still have notes here, and the dictionary page shows them.
-- A definition gets **no feed card of its own**, and is not on tag pages or in RSS; it shows on the feed only when a post picks it with `definition_picks`. Its page under `/blog/dictionary/<slug>` stays, and its old `/blog/<slug>` URL redirects there. A draft definition is not drawn on `/blog` while editing either; check it in the editor shell, or through the draft post that picks it.
+- A definition gets **no feed card of its own**, and is not on tag pages or in RSS; it shows on the feed only when a post picks it with `definition_picks` (a post with no body that only picks it is a *beat*, see *On the feed*). Its page under `/blog/dictionary/<slug>` stays, and its old `/blog/<slug>` URL redirects there. A draft definition is not drawn on `/blog` while editing either; check it in the editor shell, or through the draft post that picks it.
 
 **The usual flow, in a Claude session with the CMS MCP tools:**
 
 1. Joel names the term and gives the description, the references and his note or anecdote.
 2. `create_document` a `definition` with the term, the definition and the sources. No personal notes.
-3. `create_document` a `blog_post` whose body is Joel's note in his words (see *Who writes what*), with a `definition_picks` slice holding the new definition's id, plus a tagline and tags.
+3. `create_document` a `blog_post` with a `definition_picks` slice holding the new definition's id, titled with the term. If Joel has a note, the body is his note in his words (see *Who writes what*), plus a tagline and tags. If he just wants the definition on the feed, leave the body and tagline empty: the post is a beat. One definition per beat; two related terms are two beats.
 4. Both land in the Staging changeset as drafts. Publish when Joel asks: `publish_changeset` on Staging, or the editor's Publish.
 
 One definition can be picked by many posts, so a later post can pick it again (or pick two near-synonyms side by side) without copying it.
