@@ -55,7 +55,7 @@ export const getStaticPaths = (async () => {
   }));
 }) satisfies GetStaticPaths;
 
-const { posts, currentKey, timeline, isLatest } = Astro.props;
+let { posts, currentKey, timeline, isLatest } = Astro.props;
 
 // Group the full timeline into per-year blocks. The ←/→ buttons page through
 // the years client-side (no navigation); only clicking a Q# loads that quarter.
@@ -135,6 +135,18 @@ const definitionOnly = (slug: string) => {
 // Round 2: one made-up link beat in the latest quarter, to show the shape
 const feedPosts = (() => {
   if (!demoLink) return posts;
+  // Round 4: Bot Bash and Comp Stomp as two beats, back to back
+  const bb = posts.findIndex((p) => p.slug === 'bot-bash');
+  if (bb >= 0) {
+    const src = posts[bb] as any;
+    const defs = (slicesBySlug.get('bot-bash')?.[0] as any)?.definitions ?? [];
+    const split = defs.map((d: any) => {
+      const fake = { ...src, slug: `__beat-${d.slug}`, body_markdown: '' };
+      slicesBySlug.set(fake.slug, [{ kind: 'definitions', definitions: [d] }]);
+      return fake;
+    });
+    posts = [...posts.slice(0, bb), ...split, ...posts.slice(bb + 1)];
+  }
   const fake = { kind: 'post', slug: '__demo-link-beat', title: demoLink.title, publish_date: '2026-10-20', tags: demoLink.tags, body_markdown: '' } as any;
   slicesBySlug.set(fake.slug, [{ kind: 'links', links: [demoLink] }]);
   const i = posts.findIndex((p) => new Date(p.publish_date) < new Date('2026-10-20'));
@@ -251,6 +263,7 @@ const jsonLd = {
                 return (
                 <article
                   class="log-record"
+                  data-size={isBeat ? 'beat' : undefined}
                   data-type={post.kind}
                   data-cms-id={isEditorial ? (post as any)._id : undefined}
                   data-cms-type={isEditorial ? 'blog_post' : undefined}
@@ -342,7 +355,7 @@ const jsonLd = {
                     )}
 
                     {/* Right under the cut, so the way on is where the text stops */}
-                    {!isBeat && !showsFullBody && (
+                    {!UNIFIED && !showsFullBody && (
                       <a href={postHref} class="read-more">
                         Continue reading →
                       </a>
@@ -1204,15 +1217,34 @@ const jsonLd = {
   /* Round 2: a picked definition, right under the title */
   .log-record .post-quote {
     margin: 0 0 var(--space-md) 0;
-    padding: var(--space-sm) var(--space-md);
+    padding: 2px 0 2px var(--space-md);
     border-left: 3px solid var(--accent-secondary);
-    background: var(--gradient-primary-subtle);
     font-family: var(--font-body);
+    font-style: italic;
     font-size: var(--text-base);
     line-height: var(--leading-relaxed);
-    color: var(--text-primary);
+    color: var(--text-secondary);
     max-width: 68ch;
   }
+  .log-record .post-quote :global(strong) { font-style: normal; color: var(--text-primary); }
+
+  /* Round 4: two sizes. A beat (no body, one pick) gets the small title and
+     tight spacing; everything else stays the full post size. */
+  .log-record[data-size="beat"] { padding: var(--space-md) 0; }
+  .log-record[data-size="beat"] .post-title { font-size: var(--text-xl); margin-bottom: 0; }
+  .log-record[data-size="beat"] :global(.featured-post-card) { gap: var(--space-sm); }
+  .log-record[data-size="beat"] .post-quote,
+  .log-record[data-size="beat"] .post-content-preview { margin: 0; }
+  .log-record[data-size="beat"] .post-content-preview :global(p) { margin: 0; }
+
+  /* Round 4: titles are links, so they look like links */
+  .log-record .post-title-link {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.15em;
+    text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  }
+  .log-record .post-title-link:hover { text-decoration-color: currentColor; }
   .log-record .post-quote :global(a) { color: inherit; }
   .log-record .post-quote :global(a):hover { color: var(--accent-primary); }
   .record-date-link { text-decoration: none; color: inherit; }
@@ -1250,7 +1282,7 @@ const jsonLd = {
     letter-spacing: var(--tracking-tight);
     margin: 0 0 var(--space-sm) 0;
   }
-  .log-record .post-title-link { text-decoration: none; color: var(--text-primary); }
+  .log-record .post-title-link { color: var(--text-primary); }
   .log-record .post-title-link:hover { color: var(--accent-primary); }
 
   /* Reading text in the body face */
