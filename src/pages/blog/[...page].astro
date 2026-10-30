@@ -367,7 +367,7 @@ const jsonLd = {
 
                     {!protoLink && !(UNIFIED && protoDefs) && <PostSlices slices={slicesBySlug.get(post.slug) ?? []} compact />}
 
-                    {post.tags && post.tags.length > 0 && (
+                    {!isBeat && post.tags && post.tags.length > 0 && (
                       <div class="post-tags">
                         {post.tags.map((tag) => (
                           <Badge href={`/blog/tags/${tag}`} size="sm">#{tag}</Badge>
@@ -1248,8 +1248,14 @@ const jsonLd = {
     text-decoration-color: var(--accent-secondary);
   }
   .log-record .post-title-link:hover { color: var(--accent-secondary); }
-  .log-record .post-quote :global(a) { color: inherit; }
-  .log-record .post-quote :global(a):hover { color: var(--accent-primary); }
+  /* The term inside a post's definition quote reads as an inline link */
+  .log-record .post-quote :global(a) {
+    color: var(--accent-primary);
+    text-decoration: underline;
+    text-decoration-color: var(--accent-secondary);
+  }
+  /* A beat's definition sits straight under its title, no rule */
+  .log-record[data-size="beat"] .post-quote { border-left: none; padding-left: 0; }
   .record-date-link { text-decoration: none; color: inherit; }
   .record-date-link[href]:hover .record-date { color: var(--accent-primary); text-decoration: underline; }
   .post-title-ext { font-family: var(--font-body); font-size: 0.7em; color: var(--text-secondary); }
