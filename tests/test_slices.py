@@ -70,7 +70,7 @@ async def test_every_slice_kind_saves(client):
         {"block_type": "nature_picks", "refs": [obs]},
         {"block_type": "definition_picks", "refs": [term]},
         {"block_type": "link_picks", "refs": [link]},
-        {"block_type": "links_by_tag", "tag": "developer-blog"},
+        {"block_type": "links_by_tag", "tags": ["developer-blog", "inspo"]},
     ]
     resp = await _create(client, "blog_post", _post(data))
     assert resp.status_code == 201, resp.text
@@ -108,9 +108,15 @@ async def test_picks_must_exist(client):
 
 
 async def test_tag_must_be_tag_shaped(client):
-    for tag in ["", "Developer Blog", "dev_blog"]:
-        resp = await _create(client, "blog_post", _post([{"block_type": "links_by_tag", "tag": tag}]))
-        assert resp.status_code == 422, tag
+    for tags in [[], [""], ["Developer Blog"], ["art", "dev_blog"]]:
+        resp = await _create(client, "blog_post", _post([{"block_type": "links_by_tag", "tags": tags}]))
+        assert resp.status_code == 422, tags
+
+
+async def test_a_one_tag_slice_saved_before_tag_lists_becomes_a_list(client):
+    resp = await _create(client, "blog_post", _post([{"block_type": "links_by_tag", "tag": "inspo"}]))
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["body"]["data"] == [{"block_type": "links_by_tag", "tags": ["inspo"]}]
 
 
 async def test_unknown_slice_kind_is_refused(client):
@@ -155,7 +161,7 @@ async def test_slice_fields_tell_the_editor_what_to_offer(client):
         return defs[block]["properties"][field]["cms:field_meta"]
 
     assert meta("MusicRange", "from_date")["field_type"] == "date"
-    assert meta("LinksByTag", "tag")["suggest_from"] == "link"
+    assert meta("LinksByTag", "tags")["suggest_from"] == "link"
     assert meta("DefinitionPicks", "refs")["ref_label_field"] == "term"
 
 

@@ -22,7 +22,7 @@ There is one kind of post. What it looks like follows from what it holds:
 
 - Every post has its own page at `/blog/<slug>`.
 - On the feed, a post with an `excerpt` shows the excerpt. Without one, a short body (up to about 800 characters of Markdown) shows in full, and a longer one is cut short; its title leads to the rest. So a short thought needs no excerpt, and a long piece should have one. See *On the feed* for how the title and size follow from what a post holds.
-- **Data a post shows goes in `data`, as slices** (`cms/slices.py`). A slice says which songs, observations, definitions or links to show; the site looks them up when it builds and draws them under the body (a compact version on the feed card). Kinds: `music_range` / `nature_range` (`{from_date, to_date}`, YYYY-MM-DD, both included), `music_picks` / `nature_picks` / `definition_picks` / `link_picks` (`{refs: [document ids]}`, shown in that order) and `links_by_tag` (`{tag}`, every `link` document with that tag). The CMS refuses a bad slice on save. A month of music is one `music_range`; "the birds from this trip" is a `nature_picks`; a reading list is a `links_by_tag`.
+- **Data a post shows goes in `data`, as slices** (`cms/slices.py`). A slice says which songs, observations, definitions or links to show; the site looks them up when it builds and draws them under the body (a compact version on the feed card). Kinds: `music_range` / `nature_range` (`{from_date, to_date}`, YYYY-MM-DD, both included), `music_picks` / `nature_picks` / `definition_picks` / `link_picks` (`{refs: [document ids]}`, shown in that order) and `links_by_tag` (`{tags}`, every `link` document carrying any of those tags). The CMS refuses a bad slice on save. A month of music is one `music_range`; "the birds from this trip" is a `nature_picks`; a reading list is a `links_by_tag`.
 - A slice is a pointer, not a copy: a range picks up songs synced after the post was written, and an edit to a definition or link shows in every post that picks it.
 
 `post_type` and `has_detail_page` are gone. The CMS drops them if an old post still carries them the next time it is saved; don't set them.
@@ -64,7 +64,9 @@ One definition can be picked by many posts, so a later post can pick it again (o
 
 ## Links
 
-A `link` document is one URL, stored once, with a `title`, `description`, `date_added` and `tags`. Tags are plain topic tags, and some name a list, for example `developer-blog`, `inspo`, `friends` or `reading`. A post shows links with `link_picks` (these, in this order) or `links_by_tag` (every link with this tag, so the list grows when a new link is tagged). Links sit in the main content list in the editor, not under **Data**.
+A `link` document is one URL, stored once, with a `title`, `description`, `date_added` and `tags`. Tags are plain topic tags, and some name a list, for example `developer-blogs`, `inspo`, `friends` or `reading`. A post shows links with `link_picks` (these, in this order) or `links_by_tag` (every link with any of these tags, so the list grows when a new link is tagged). Links sit in the main content list in the editor, not under **Data**.
+
+**A link collection is a post with a `links_by_tag` slice.** Those posts, and only those, are listed under *Collections* on `/blog/links`, with how many links their tags gather. To put a link in a collection, give it the collection's tag; to make a collection, write a post (a title and a line or two) with a `links_by_tag` slice, which can name several tags (`art` and `design`). A post that only picks links, such as a link beat or an essay citing a few, is not a collection. Every tag on a link also links to `/blog/tags/<tag>`, which lists the posts and links carrying it.
 
 A thought about one link still puts that link inline in its body (see *Who writes what*); a `link` document is for a link worth listing.
 

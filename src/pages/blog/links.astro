@@ -15,17 +15,21 @@ import '../../styles/log.css';
 // Every published link document
 const { links: linkDocs } = await loadDataPool();
 
-// Posts whose slices show links, for the sidebar, with how many each shows
+// Collections, for the sidebar: posts with a links_by_tag slice, with how many
+// links their tags gather. A post that only picks links (a link beat, an essay
+// citing a few) is not a collection.
 const allPosts = await fetchBlogPosts();
 const collections = (
   await Promise.all(
     allPosts
       .filter(p => p.kind === 'post')
-      .map(async post => ({
-        post,
-        count: (await resolveSlices((post as any).data))
-          .reduce((n, r) => n + (r.kind === 'links' ? r.links.length : 0), 0),
-      })),
+      .map(async post => {
+        const ids = new Set<string>();
+        for (const r of await resolveSlices((post as any).data)) {
+          if (r.kind === 'links' && r.tags) r.links.forEach(l => ids.add(l._id));
+        }
+        return { post, count: ids.size };
+      }),
   )
 )
   .filter(c => c.count > 0)
@@ -41,6 +45,7 @@ const postLinks = linkDocs.map(link => ({
   url: link.url,
   title: link.title,
   description: link.description ?? '',
+  tags: link.tags ?? [],
   date_added: link.date_added,
 }));
 

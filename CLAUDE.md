@@ -235,9 +235,11 @@ src/content/config.ts           # collection definitions + Zod schemas
   published, so a slice cannot break the build. The CMS validates slices on save (dates, order, tag shape, and that
   every picked ref exists and has the right type). Components: `src/components/blog/slices/`.
   In the editor, **Data** on a post is a card per slice: ranges get date pickers, `links_by_tag` suggests the tags
-  already on links, and a picks slice searches its type by title (a definition by `term`). In `link_picks`, pasting
+  already on links (it takes several: a link with any of them is in), and a picks slice searches its type by title (a definition by `term`). In `link_picks`, pasting
   a URL no link has offers to create the `link` document there (a draft in the same changeset, so publish them
   together; the site skips an unpublished pick).
+- **Link collections** are the posts with a `links_by_tag` slice: `/blog/links` lists only those under *Collections*,
+  so a link joins a collection by being tagged (see `docs/blog-conventions.md`, *Links*).
 - Publishing, unpublishing and deleting fire the Netlify build hook through a CMS webhook. See *Rebuilding the site*.
 
 ## Gotchas
