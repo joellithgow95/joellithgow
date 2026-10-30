@@ -243,7 +243,10 @@ const jsonLd = {
                 // (a beat) drops the tagline and shows only what it picked.
                 const isBeat = UNIFIED && !!(protoDefs || protoLink) && !body.trim();
                 const defTitle = UNIFIED && protoDefs && (protoDefs.length === 1 || isBeat) ? protoDefs : null;
-                const titleText = defTitle ? defTitle.map((x) => `“${x.term}”`).join(' / ') : post.title;
+                // The quote marks around a definition title are red
+                const titleMarkup = defTitle
+                  ? defTitle.map((x, i) => <>{i > 0 && ' / '}<span class="title-quote">“</span>{x.term}<span class="title-quote">”</span></>)
+                  : post.title;
                 if (protoDefs && !UNIFIED) return (
                   <article class="log-record" data-type="post" data-proto={PROTOTYPE_FEED}>
                     <div class="record-body">
@@ -264,6 +267,7 @@ const jsonLd = {
                 <article
                   class="log-record"
                   data-size={isBeat ? 'beat' : undefined}
+                  data-slug={post.slug}
                   data-type={post.kind}
                   data-cms-id={isEditorial ? (post as any)._id : undefined}
                   data-cms-type={isEditorial ? 'blog_post' : undefined}
@@ -274,13 +278,17 @@ const jsonLd = {
                     </time></a>}
                   <Card variant="flat" as="article" class="featured-post-card" data-post-type={post.kind}>
                     <h2 class="post-title">
+                      {isBeat && defTitle ? (
+                        <span class="post-title-text">{titleMarkup}</span>
+                      ) : (
                       <a
                         href={protoLink ? protoLink.url : postHref}
                         class="post-title-link"
                         {...(protoLink ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                       >
-                        <span data-cms-field="title">{titleText}</span>{protoLink && <span class="post-title-ext" aria-label="external link"> ↗</span>}
+                        <span data-cms-field="title">{titleMarkup}</span>{protoLink && <span class="post-title-ext" aria-label="external link"> ↗</span>}
                       </a>
+                      )}
                       {linkCount > 0 && (
                         <Badge variant="tertiary" size="sm" class="collection-badge">{linkCount} links</Badge>
                       )}
@@ -1254,8 +1262,7 @@ const jsonLd = {
     text-decoration: underline;
     text-decoration-color: var(--accent-secondary);
   }
-  /* A beat's definition sits straight under its title, no rule */
-  .log-record[data-size="beat"] .post-quote { border-left: none; padding-left: 0; }
+  .log-record .title-quote { color: var(--accent-primary); }
   .record-date-link { text-decoration: none; color: inherit; }
   .record-date-link[href]:hover .record-date { color: var(--accent-primary); text-decoration: underline; }
   .post-title-ext { font-family: var(--font-body); font-size: 0.7em; color: var(--text-secondary); }
