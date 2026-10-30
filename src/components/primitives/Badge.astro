@@ -8,10 +8,11 @@
  *   <Badge>Featured</Badge>
  *   <Badge variant="secondary" size="sm">New</Badge>
  *   <Badge href="/tag/javascript">#javascript</Badge>
+ *   <Badge variant="tag" size="sm" href="/blog/tags/ai">#ai</Badge>
  */
 
 export interface Props {
-  variant?: 'default' | 'secondary' | 'tertiary' | 'ghost' | 'success' | 'warning' | 'danger';
+  variant?: 'default' | 'secondary' | 'tertiary' | 'ghost' | 'tag' | 'success' | 'warning' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   href?: string;
   class?: string;
@@ -105,6 +106,23 @@ const linkProps = href ? {
     background: transparent;
     color: var(--text-secondary);
     border: 1px solid var(--gradient-primary-subtle);
+  }
+
+  /* Topic tag: quiet mono outline, as on the blog feed */
+  .badge--tag {
+    font-family: var(--font-mono);
+    font-weight: var(--font-normal);
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--text-secondary);
+    background: none;
+    border: 1px solid var(--gradient-primary-subtle);
+  }
+  .badge--tag.badge--sm { padding: 1px var(--space-sm); }
+  .badge--tag.badge--link:hover {
+    color: var(--text-primary);
+    border-color: var(--accent-primary);
+    background: none;
   }
 
   .badge--success {

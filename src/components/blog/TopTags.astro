@@ -1,0 +1,123 @@
+---
+/**
+ * TopTags — "I post about #tag #tag …": the most-used tags on the blog,
+ * as a block for the blog index. Not on any page yet; at 900px and under it
+ * puts its divider above itself, for use at the foot of a one-column page.
+ *
+ * Counts published posts only (what fetchBlogPosts() returns), so the
+ * numbers match /blog/tags and the "N posts" heading on each tag page.
+ * Definitions and links are data, not posts, and aren't counted.
+ *
+ * Usage:
+ *   <TopTags posts={allPosts} />
+ */
+import Badge from '@components/primitives/Badge.astro';
+
+export interface Props {
+  posts: { tags?: string[] }[];
+  /** Tags shown at first */
+  limit?: number;
+  /** Tags each "more" adds */
+  step?: number;
+}
+
+const { posts, limit = 12, step = 24 } = Astro.props;
+
+const counts = new Map<string, number>();
+for (const post of posts) {
+  for (const tag of new Set(post.tags ?? [])) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+}
+// Most used first, then alphabetical, same order as /blog/tags
+const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+---
+
+{sorted.length > 0 && (
+  <nav class="top-tags" aria-label="Top tags" data-top-tags data-step={step}>
+    <p class="tt-label">I post about</p>
+    <p class="tt-line">
+      {sorted.map(([tag, count], i) => (
+        <Badge
+          variant="tag"
+          size="sm"
+          href={`/blog/tags/${tag}`}
+          title={`${count} post${count !== 1 ? 's' : ''} tagged ${tag}`}
+          hidden={i >= limit}
+        >
+          #{tag} <span class="tt-count">{count}</span>
+        </Badge>
+      ))}
+      {/* Without JS this goes to the full tag list; with it, each click shows the next batch here */}
+      {sorted.length > limit && (
+        <a href="/blog/tags" class="tt-more" data-tt-more>more</a>
+      )}
+    </p>
+  </nav>
+)}
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-top-tags]').forEach((nav) => {
+    const more = nav.querySelector<HTMLAnchorElement>('[data-tt-more]');
+    if (!more) return;
+    const step = Number(nav.dataset.step) || 24;
+    more.setAttribute('role', 'button');
+    more.addEventListener('click', (e) => {
+      e.preventDefault();
+      const hidden = nav.querySelectorAll<HTMLElement>('.badge[hidden]');
+      hidden.forEach((el, i) => { if (i < step) el.hidden = false; });
+      if (hidden.length <= step) more.remove();
+    });
+  });
+</script>
+
+<style>
+  @import '../../styles/tokens.css';
+  @import '../../styles/themes.css';
+
+  /* Above the feed, under a divider */
+  .top-tags {
+    margin: 0 0 var(--space-lg) 0;
+    padding-bottom: var(--space-2xl);
+    border-bottom: 1px solid var(--gradient-primary-subtle);
+  }
+
+  /* One-column view: moves to the foot of the page, divider above */
+  @media (max-width: 900px) {
+    .top-tags {
+      margin: var(--space-2xl) 0 0 0;
+      padding: var(--space-2xl) 0 0 0;
+      border-bottom: 0;
+      border-top: 1px solid var(--gradient-primary-subtle);
+    }
+  }
+
+  /* Same measure as a post's paragraphs, so it wraps where they do */
+  .tt-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-sm);
+    max-width: 68ch;
+    margin: 0;
+  }
+
+  .tt-line :global(.badge[hidden]) { display: none; }
+
+  /* Eyebrow: the same mono caption as each post's date */
+  .tt-label {
+    margin: 0 0 var(--space-sm) 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-wide);
+    color: var(--text-secondary);
+  }
+
+  .tt-count { opacity: 0.6; }
+
+  .tt-more {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+    text-decoration: none;
+  }
+  .tt-more:hover { color: var(--accent-primary); }
+</style>
