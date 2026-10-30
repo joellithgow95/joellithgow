@@ -15,8 +15,7 @@ import Video from '@components/ui/Video.astro';
 import ImageGallery from '@components/modals/ImageGallery.astro';
 import AlbumMosaic from '@components/blog/AlbumMosaic.astro';
 import PostSlices from '@components/blog/slices/PostSlices.astro';
-import DefinitionBeat from '@components/blog/DefinitionBeat.astro';
-import { loadDataPool, resolveSlices } from '@lib/slices';
+import { loadDataPool, resolveSlices, type Entry } from '@lib/slices';
 
 export const getStaticPaths = (async () => {
   const posts = await fetchBlogPosts();
@@ -55,7 +54,7 @@ export const getStaticPaths = (async () => {
   }));
 }) satisfies GetStaticPaths;
 
-let { posts, currentKey, timeline, isLatest } = Astro.props;
+const { posts, currentKey, timeline, isLatest } = Astro.props;
 
 // Group the full timeline into per-year blocks. The ←/→ buttons page through
 // the years client-side (no navigation); only clicking a Q# loads that quarter.
@@ -73,7 +72,7 @@ const currentBlockIndex = blockStarts.indexOf(blockKey(Number(currentKey.split('
 const allPosts = await fetchBlogPosts();
 
 // A post whose Markdown body is at most this long, with no excerpt, shows in
-// full on its feed card; a longer one is cut off with "Continue reading".
+// full on its feed card; a longer one is cut short, and its title leads to the rest.
 const SHORT_BODY_CHARS = 800;
 
 // The opening of a long post for its feed card: whole blocks (paragraphs,
@@ -111,58 +110,38 @@ const slicesBySlug = new Map(
   ),
 );
 
-// PROTOTYPE: a post whose only slice is definition_picks gets the layout
-// named by PROTOTYPE_FEED (beat | entry | kicker). Unset = today's card.
-const PROTOTYPE_FEED = process.env.PROTOTYPE_FEED as 'beat' | 'entry' | 'kicker' | 'unified' | undefined;
-const UNIFIED = PROTOTYPE_FEED === 'unified';
-// Round 2: as if Joel had cleared the note on these, leaving just the definition
-const PROTOTYPE_EMPTY = new Set(UNIFIED ? ['diegetic-ui', 'judas-pig', 'bot-bash', 'meat-proxy'] : []);
-// A definition's credit, from its own sources: a link source links out with ↗,
-// a citation shows its attribution. Nothing for terms Joel coined (no sources).
+// How a post shows on the feed follows from what it holds (docs/blog-conventions.md):
+// - A post whose only slice picks definitions, or one link, and that has no
+//   body is a beat: a smaller title, no date, tagline or tags.
+// - A post about one definition (or a definition beat) is titled with the
+//   quoted term, and the definition sits right under the title.
+// - A post whose only slice picks one link is titled with that link, which
+//   links out with ↗; the slice itself is not drawn.
+const onlyDefinitions = (slug: string) => {
+  const s = slicesBySlug.get(slug) ?? [];
+  return s.length === 1 && s[0].kind === 'definitions' ? s[0].definitions : null;
+};
+const onlyLink = (slug: string) => {
+  const s = slicesBySlug.get(slug) ?? [];
+  return s.length === 1 && s[0].kind === 'links' && !s[0].tag && s[0].links.length === 1 ? s[0].links[0] : null;
+};
+
+// A definition's credit, from its own sources: a link source links out with ↗
+// (labelled with the source's title), a citation shows its attribution.
 const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-const creditHtml = (d: any) => {
-  const parts = (d.sources ?? []).map((src: any) =>
+const creditHtml = (d: Entry) => {
+  const parts = (d.sources ?? []).map((src) =>
     src.type === 'link' && src.url
       ? `<a href="${esc(src.url)}" target="_blank" rel="noopener noreferrer">${esc(src.title || src.url)}</a>&nbsp;↗`
       : esc(src.attribution || src.title || ''),
   ).filter(Boolean);
   return parts.length ? `<span class="quote-credit">— ${parts.join(', ')}</span>` : '';
 };
-const linkOnly = (slug: string) => {
-  const s = slicesBySlug.get(slug) ?? [];
-  return s.length === 1 && s[0].kind === 'links' && !s[0].tag && s[0].links.length === 1 ? s[0].links[0] : null;
-};
-// Round 2: one made-up link beat at the top of the latest quarter, to show the shape
-const demoLink = UNIFIED && isLatest
-  ? (await loadDataPool()).links.find((l) => /simon willison/i.test(l.title))
-  : undefined;
-// Titles Joel floated in the thread, to show the kicker layout with a take as the title
-const PROTOTYPE_TITLES: Record<string, string> = { 'judas-pig': 'Can a Pig Be a Narc?' };
-const definitionOnly = (slug: string) => {
-  const s = slicesBySlug.get(slug) ?? [];
-  return s.length === 1 && s[0].kind === 'definitions' ? s[0].definitions : null;
-};
-
-// Round 2: one made-up link beat in the latest quarter, to show the shape
-const feedPosts = (() => {
-  if (!demoLink) return posts;
-  // Round 4: Bot Bash and Comp Stomp as two beats, back to back
-  const bb = posts.findIndex((p) => p.slug === 'bot-bash');
-  if (bb >= 0) {
-    const src = posts[bb] as any;
-    const defs = (slicesBySlug.get('bot-bash')?.[0] as any)?.definitions ?? [];
-    const split = defs.map((d: any) => {
-      const fake = { ...src, slug: `__beat-${d.slug}`, body_markdown: '' };
-      slicesBySlug.set(fake.slug, [{ kind: 'definitions', definitions: [d] }]);
-      return fake;
-    });
-    posts = [...posts.slice(0, bb), ...split, ...posts.slice(bb + 1)];
-  }
-  const fake = { kind: 'post', slug: '__demo-link-beat', title: demoLink.title, publish_date: '2026-10-20', tags: demoLink.tags, body_markdown: '' } as any;
-  slicesBySlug.set(fake.slug, [{ kind: 'links', links: [demoLink] }]);
-  const i = posts.findIndex((p) => new Date(p.publish_date) < new Date('2026-10-20'));
-  return [...posts.slice(0, i), fake, ...posts.slice(i)];
-})();
+// A picked definition as a quote; `term` puts its term, linked to the dictionary, in front
+const quoteHtml = (d: Entry, term: 'none' | 'plain' | 'linked') =>
+  (term === 'linked' ? `<strong><a href="/blog/dictionary/${esc(d.slug)}">${esc(d.term)}</a></strong>: `
+    : term === 'plain' ? `<strong>${esc(d.term)}</strong>: ` : '')
+  + marked.parseInline(d.definition) + creditHtml(d);
 
 // Published link documents; feeds the sidebar "Links" card
 const totalLinks = (await loadDataPool()).links.length;
@@ -234,57 +213,36 @@ const jsonLd = {
                 posts here while editing. Latest quarter only: that is where a new
                 post would land. */}
             <div class="log-feed" data-cms-list={isLatest ? 'blog_post' : undefined}>
-              {feedPosts.map((post) => (<>
-                {(() => {
+              {posts.map((post) => {
                 // Blog posts (not gateway-synced dumps/outings) can be edited
                 // inline from the index. data-cms-id scopes which document a
                 // field edit belongs to.
                 const isEditorial = post.kind === 'post';
-                const body = PROTOTYPE_EMPTY.has(post.slug) ? '' : ('body_markdown' in post ? (post as any).body_markdown : null) ?? '';
+                const body = ('body_markdown' in post ? (post as any).body_markdown : null) ?? '';
                 const excerpt = ('excerpt' in post && (post as any).excerpt) || '';
                 const linkCount = ('links' in post && (post as any).links?.length) || 0;
                 // A short post shows its whole body on the card; a long one
-                // shows its opening and links to its page.
+                // shows its opening, and its title leads to the rest.
                 const showsFullBody = !excerpt && SHORT_BODY_CHARS >= body.length;
                 const postHref = `/blog/${post.slug}`;
-                const protoDefs = PROTOTYPE_FEED ? definitionOnly(post.slug) : null;
-                const protoLink = UNIFIED ? linkOnly(post.slug) : null;
-                // Round 2: one card for everything. A definition post's title is the
-                // quoted term; a link post's title links out; a post with no body
-                // (a beat) drops the tagline and shows only what it picked.
-                const isBeat = UNIFIED && !!(protoDefs || protoLink) && !body.trim();
-                const defTitle = UNIFIED && protoDefs && (protoDefs.length === 1 || isBeat) ? protoDefs : null;
+                const pickedDefs = onlyDefinitions(post.slug);
+                const pickedLink = onlyLink(post.slug);
+                const isBeat = !!(pickedDefs || pickedLink) && !body.trim();
+                const defTitle = pickedDefs && (pickedDefs.length === 1 || isBeat) ? pickedDefs : null;
                 // The quote marks around a definition title are red
                 const titleMarkup = defTitle
                   ? defTitle.map((x, i) => <>{i > 0 && ' / '}<span class="title-quote">“</span>{x.term}<span class="title-quote">”</span></>)
                   : post.title;
-                if (protoDefs && !UNIFIED) return (
-                  <article class="log-record" data-type="post" data-proto={PROTOTYPE_FEED}>
-                    <div class="record-body">
-                      <DefinitionBeat
-                        variant={PROTOTYPE_FEED!}
-                        href={postHref}
-                        date={post.publish_date as any}
-                        title={PROTOTYPE_TITLES[post.slug] ?? post.title}
-                        description={(post as any).description}
-                        body={body}
-                        tags={post.tags}
-                        definitions={protoDefs}
-                      />
-                    </div>
-                  </article>
-                );
                 return (
                 <article
                   class="log-record"
                   data-size={isBeat ? 'beat' : undefined}
-                  data-slug={post.slug}
                   data-type={post.kind}
                   data-cms-id={isEditorial ? (post as any)._id : undefined}
                   data-cms-type={isEditorial ? 'blog_post' : undefined}
                 >
                   <div class="record-body">
-                    {!isBeat && <a href={UNIFIED ? postHref : undefined} class="record-date-link"><time class="record-date" datetime={new Date(post.publish_date).toISOString()}>
+                    {!isBeat && <a href={postHref} class="record-date-link"><time class="record-date" datetime={new Date(post.publish_date).toISOString()}>
                       {new Date(post.publish_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
                     </time></a>}
                   <Card variant="flat" as="article" class="featured-post-card" data-post-type={post.kind}>
@@ -293,11 +251,11 @@ const jsonLd = {
                         <span class="post-title-text">{titleMarkup}</span>
                       ) : (
                       <a
-                        href={protoLink ? protoLink.url : postHref}
+                        href={pickedLink ? pickedLink.url : postHref}
                         class="post-title-link"
-                        {...(protoLink ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                        {...(pickedLink ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                       >
-                        <span data-cms-field="title">{titleMarkup}</span>{protoLink && <span class="post-title-ext" aria-label="external link"> ↗</span>}
+                        <span data-cms-field={defTitle ? undefined : 'title'}>{titleMarkup}</span>{pickedLink && <span class="post-title-ext" aria-label="external link"> ↗</span>}
                       </a>
                       )}
                       {linkCount > 0 && (
@@ -343,11 +301,11 @@ const jsonLd = {
                     )}
 
                     {defTitle && defTitle.map((x) => (
-                      <blockquote class="post-quote" set:html={(defTitle.length > 1 ? `<strong>${x.term}</strong>: ` : '') + marked.parseInline(x.definition) + creditHtml(x)} />
+                      <blockquote class="post-quote" set:html={quoteHtml(x, defTitle.length > 1 ? 'plain' : 'none')} />
                     ))}
 
-                    {isBeat && protoLink?.description && (
-                      <div class="post-content-preview full-content"><p>{protoLink.description}</p></div>
+                    {isBeat && pickedLink?.description && (
+                      <div class="post-content-preview full-content"><p>{pickedLink.description}</p></div>
                     )}
 
                     {!isBeat && 'description' in post && (post as any).description && (
@@ -373,18 +331,11 @@ const jsonLd = {
                       />
                     )}
 
-                    {/* Right under the cut, so the way on is where the text stops */}
-                    {!UNIFIED && !showsFullBody && (
-                      <a href={postHref} class="read-more">
-                        Continue reading →
-                      </a>
-                    )}
-
-                    {UNIFIED && protoDefs && !defTitle && protoDefs.map((x) => (
-                      <blockquote class="post-quote" set:html={`<strong><a href="/blog/dictionary/${x.slug}">${x.term}</a></strong>: ` + marked.parseInline(x.definition) + creditHtml(x)} />
+                    {pickedDefs && !defTitle && pickedDefs.map((x) => (
+                      <blockquote class="post-quote" set:html={quoteHtml(x, 'linked')} />
                     ))}
 
-                    {!protoLink && !(UNIFIED && protoDefs) && <PostSlices slices={slicesBySlug.get(post.slug) ?? []} compact />}
+                    {!pickedLink && !pickedDefs && <PostSlices slices={slicesBySlug.get(post.slug) ?? []} compact />}
 
                     {!isBeat && post.tags && post.tags.length > 0 && (
                       <div class="post-tags">
@@ -403,7 +354,7 @@ const jsonLd = {
                   </div>
                 </article>
                 );
-              })()}</>))}
+              })}
             </div>
           </section>
         )}
@@ -1233,7 +1184,7 @@ const jsonLd = {
     border-top: 1px solid var(--gradient-primary-subtle);
   }
   .log-record:first-child { border-top: none; padding-top: var(--space-sm); }
-  /* Round 2: a picked definition, right under the title */
+  /* A picked definition: italic, with a red rule */
   .log-record .post-quote {
     margin: 0 0 var(--space-md) 0;
     padding: 2px 0 2px var(--space-sm);
@@ -1247,19 +1198,17 @@ const jsonLd = {
   }
   .log-record .post-quote :global(strong) { font-style: normal; color: var(--text-primary); }
 
-  /* Round 4: two sizes. A beat (no body, one pick) gets the small title and
-     tight spacing; everything else stays the full post size. */
-  /* Beats: no date, less space between dividers (16px vs a post's 24px), and
-     the title at the size of a subheading inside a post (h2, text-xl). */
+  /* Two title sizes. A beat has no date, less space between dividers (16px vs
+     a post's 24px), and its title at the size of a subheading inside a post
+     (h2, text-xl). */
   .log-record[data-size="beat"] { padding: var(--space-md) 0; }
   .log-record[data-size="beat"] .post-title { font-size: var(--text-xl); margin-bottom: var(--space-sm); }
   .log-record[data-size="beat"] :global(.featured-post-card) { gap: var(--space-sm); }
-  .log-record[data-size="beat"] .post-tags { margin-top: var(--space-sm); }
   .log-record[data-size="beat"] .post-quote,
   .log-record[data-size="beat"] .post-content-preview { margin: 0; }
   .log-record[data-size="beat"] .post-content-preview :global(p) { margin: 0; }
 
-  /* Round 4: titles are links, so they look like links */
+  /* Titles are links, so they look like links */
   .log-record .post-title-link {
     text-decoration: underline;
     text-underline-offset: 0.15em;
@@ -1378,23 +1327,6 @@ const jsonLd = {
     color: var(--accent-primary);
     text-decoration: underline;
     transform: none;
-  }
-
-  /* "Continue reading" sits right under the cut, pulled up into the
-     preview's bottom margin so it reads as the end of the text */
-  .log-record .read-more {
-    display: inline-block;
-    margin: calc(var(--space-sm) - var(--space-lg)) 0 var(--space-lg);
-    font-family: var(--font-mono);
-    font-size: var(--text-sm);
-    font-weight: var(--font-medium);
-    color: var(--accent-primary);
-    text-decoration: none;
-  }
-  .log-record .read-more:hover { text-decoration: underline; }
-  .log-record .read-more:focus-visible {
-    outline: 2px solid var(--accent-primary);
-    outline-offset: 2px;
   }
 
   .log-record .post-description {
