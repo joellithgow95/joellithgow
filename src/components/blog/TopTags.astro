@@ -1,0 +1,135 @@
+---
+/**
+ * TopTags — the most-used tags on the blog, as a strip above the feed.
+ *
+ * Counts published posts only (what fetchBlogPosts() returns), so the
+ * numbers match /blog/tags and the "N posts" heading on each tag page.
+ * Definitions and links are data, not posts, and aren't counted.
+ *
+ * Usage:
+ *   <TopTags posts={allPosts} />
+ */
+export interface Props {
+  posts: { tags?: string[] }[];
+  limit?: number;
+}
+
+const { posts, limit = 12 } = Astro.props;
+
+const counts = new Map<string, number>();
+for (const post of posts) {
+  for (const tag of new Set(post.tags ?? [])) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+}
+// Most used first, then alphabetical, same order as /blog/tags
+const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+const top = sorted.slice(0, limit);
+---
+
+{top.length > 0 && (
+  <nav class="top-tags" aria-label="Top tags">
+    <h2 class="tt-heading">Top tags</h2>
+    <ul class="tt-list">
+      {top.map(([tag, count]) => (
+        <li>
+          <a href={`/blog/tags/${tag}`} class="tt-tag" title={`${count} post${count !== 1 ? 's' : ''} tagged ${tag}`}>
+            <span class="tt-name">#{tag}</span>
+            <span class="tt-count">{count}</span>
+          </a>
+        </li>
+      ))}
+      {sorted.length > top.length && (
+        <li>
+          <a href="/blog/tags" class="tt-all">All {sorted.length} tags →</a>
+        </li>
+      )}
+    </ul>
+  </nav>
+)}
+
+<style>
+  @import '../../styles/tokens.css';
+  @import '../../styles/themes.css';
+
+  .top-tags {
+    margin: 0 0 var(--space-lg) 0;
+    padding-bottom: var(--space-md);
+    border-bottom: 1px solid var(--gradient-primary-subtle);
+  }
+
+  .tt-heading {
+    margin: 0 0 var(--space-sm) 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-weight: var(--font-bold);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wide);
+    color: var(--text-secondary);
+  }
+
+  .tt-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-sm);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .tt-tag,
+  .tt-all {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-xs);
+    padding: var(--space-xs) var(--space-sm);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    white-space: nowrap;
+    text-decoration: none;
+  }
+
+  .tt-tag {
+    color: var(--text-primary);
+    border: 1px solid var(--text-primary);
+    transition: background var(--duration-base) var(--ease-out),
+                color var(--duration-base) var(--ease-out),
+                transform var(--duration-base) var(--ease-out),
+                box-shadow var(--duration-base) var(--ease-out);
+  }
+  .tt-tag:hover {
+    background: var(--accent-primary);
+    color: var(--card-alt-text-1);
+    transform: translate(-2px, -2px);
+    box-shadow: 2px 2px 0 var(--bg-dark);
+  }
+  .tt-tag:focus-visible {
+    outline: var(--border-width) solid var(--accent-primary);
+    outline-offset: 2px;
+  }
+
+  .tt-name { font-weight: var(--font-bold); }
+  .tt-count {
+    font-size: var(--text-xs);
+    opacity: 0.7;
+  }
+
+  .tt-all {
+    color: var(--text-secondary);
+  }
+  .tt-all:hover { color: var(--accent-primary); }
+
+  /* Phones: one row that scrolls sideways, so the feed stays near the top */
+  @media (max-width: 600px) {
+    .tt-list {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      scrollbar-width: none;
+      scroll-snap-type: x proximity;
+      /* Room for the hover offset so it isn't clipped */
+      padding: 3px 0 var(--space-xs) 3px;
+      margin-left: -3px;
+    }
+    .tt-list::-webkit-scrollbar { display: none; }
+    .tt-list > li { scroll-snap-align: start; }
+  }
+</style>

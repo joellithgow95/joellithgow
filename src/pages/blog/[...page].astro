@@ -15,6 +15,7 @@ import Video from '@components/ui/Video.astro';
 import ImageGallery from '@components/modals/ImageGallery.astro';
 import AlbumMosaic from '@components/blog/AlbumMosaic.astro';
 import PostSlices from '@components/blog/slices/PostSlices.astro';
+import TopTags from '@components/blog/TopTags.astro';
 import { loadDataPool, resolveSlices } from '@lib/slices';
 
 export const getStaticPaths = (async () => {
@@ -173,7 +174,9 @@ const jsonLd = {
     <div class="blog-wrapper">
       {/* Main Content Column */}
       <div class="main-content">
-        {/* Feed dives straight in — identity + tags live in the global header */}
+        {/* Most-used tags across every quarter, then the feed */}
+        <TopTags posts={allPosts} />
+
         {posts.length > 0 && (
           <section id="blog" class="featured-posts-section">
             {/* data-cms-list + the template below let the editor show unpublished
