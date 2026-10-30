@@ -30,7 +30,7 @@ export type ResolvedSlice =
   | { kind: 'music'; songs: Song[] }
   | { kind: 'nature'; observations: Observation[] }
   | { kind: 'definitions'; definitions: Entry[] }
-  | { kind: 'links'; links: Link[]; tag?: string };
+  | { kind: 'links'; links: Link[]; tags?: string[] };
 
 export interface DataPool {
   songs: Song[];
@@ -99,9 +99,13 @@ export function resolveSlice(slice: Slice | Record<string, unknown>, data: DataP
       return { kind: 'definitions', definitions: pick(data.definitions, s.refs) };
     case 'link_picks':
       return { kind: 'links', links: pick(data.links, s.refs) };
-    case 'links_by_tag':
-      if (typeof s.tag !== 'string') return null;
-      return { kind: 'links', tag: s.tag, links: data.links.filter((l) => l.tags?.includes(s.tag)).sort(newestLink) };
+    case 'links_by_tag': {
+      // Any of `tags`; a slice saved before collections could name several tags holds one `tag`.
+      const tags: string[] | null = Array.isArray(s.tags) ? s.tags : typeof s.tag === 'string' ? [s.tag] : null;
+      if (!tags?.length) return null;
+      const links = data.links.filter((l) => l.tags?.some((t) => tags.includes(t))).sort(newestLink);
+      return { kind: 'links', tags, links };
+    }
     default:
       return null;
   }

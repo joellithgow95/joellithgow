@@ -2,7 +2,7 @@
 Slices: what a blog post shows from the collected data (astraeus ADR 026).
 
 A slice is a saved instruction in a post, not content: "the songs I liked in
-October", "these three observations", "every link tagged developer-blog". The
+October", "these three observations", "every link tagged art or design". The
 site resolves it at build time against the published data documents
 (`src/lib/slices.ts`), so a range picks up items synced after the post was
 written.
@@ -18,7 +18,7 @@ Example ``data`` value on a ``blog_post``::
     [
         {"block_type": "music_range", "from_date": "2026-10-01", "to_date": "2026-10-31"},
         {"block_type": "nature_picks", "refs": ["<inat_observation id>", ...]},
-        {"block_type": "links_by_tag", "tag": "developer-blog"},
+        {"block_type": "links_by_tag", "tags": ["art", "design"]},
     ]
 """
 
@@ -29,7 +29,7 @@ from typing import Any
 
 from pydantic import field_validator, model_validator
 from pydantic_core import PydanticCustomError
-from starlette_cms import DateField, DocumentRef, ListField, TagField
+from starlette_cms import DateField, DocumentRef, ListField, TagsField
 from starlette_cms.model_builder import build_block_model
 
 _TAG = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
@@ -71,7 +71,7 @@ class _LinkPicks:
 
 class _ByTag:
     # Suggests the tags already on link documents, so a slice names a list that exists.
-    tag: str = TagField(required=True, suggest_from="link", placeholder="developer-blog")
+    tags: list = TagsField(required=True, suggest_from="link", placeholder="developer-blogs")
 
 
 # ── Slice blocks ─────────────────────────────────────────────────────────────
@@ -107,13 +107,30 @@ class LinkPicks(build_block_model("link_picks", _LinkPicks)):
 
 
 class LinksByTag(build_block_model("links_by_tag", _ByTag)):
-    """Every published link document carrying this tag, newest first. Grows as links are tagged."""
+    """Every published link document carrying any of these tags, newest first. Grows as links are tagged.
 
-    @field_validator("tag")
+    A post with this slice is a link collection: it is listed under Collections on /blog/links.
+    """
+
+    @model_validator(mode="before")
     @classmethod
-    def _tag_shape(cls, value: str) -> str:
-        if not _TAG.match(value):
-            raise PydanticCustomError("slice_tag", "must be a lowercase, hyphenated tag such as developer-blog")
+    def _one_tag_to_tags(cls, value: Any) -> Any:
+        # Slices saved before a collection could name several tags hold {"tag": "..."}.
+        if isinstance(value, dict) and "tag" in value:
+            value = dict(value)
+            tag = value.pop("tag")
+            if not value.get("tags"):
+                value["tags"] = [tag]
+        return value
+
+    @field_validator("tags")
+    @classmethod
+    def _tag_shape(cls, value: list) -> list:
+        if not value:
+            raise PydanticCustomError("slice_tag", "name at least one tag")
+        for tag in value:
+            if not isinstance(tag, str) or not _TAG.match(tag):
+                raise PydanticCustomError("slice_tag", "each tag must be lowercase and hyphenated, such as developer-blogs")
         return value
 
 

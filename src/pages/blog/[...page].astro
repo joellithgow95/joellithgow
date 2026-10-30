@@ -123,7 +123,7 @@ const onlyDefinitions = (slug: string) => {
 };
 const onlyLink = (slug: string) => {
   const s = slicesBySlug.get(slug) ?? [];
-  return s.length === 1 && s[0].kind === 'links' && !s[0].tag && s[0].links.length === 1 ? s[0].links[0] : null;
+  return s.length === 1 && s[0].kind === 'links' && !s[0].tags && s[0].links.length === 1 ? s[0].links[0] : null;
 };
 
 // A definition's credit, from its own sources: a link source links out with ↗

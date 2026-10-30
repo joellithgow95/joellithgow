@@ -51,7 +51,7 @@ export interface BlogPost {
 export type Slice =
   | { block_type: 'music_range' | 'nature_range'; from_date: string; to_date: string }
   | { block_type: 'music_picks' | 'nature_picks' | 'definition_picks' | 'link_picks'; refs: string[] }
-  | { block_type: 'links_by_tag'; tag: string };
+  | { block_type: 'links_by_tag'; tags: string[] };
 
 export interface HeroMedia {
   src: string;

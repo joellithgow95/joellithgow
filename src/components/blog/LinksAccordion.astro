@@ -1,17 +1,19 @@
 ---
 /**
  * LinksAccordion — slim title-only rows that expand to reveal the description,
- * full URL, and an Open Graph preview thumbnail. Includes an expand/collapse-all
+ * full URL, its tags, and an Open Graph preview thumbnail. Includes an expand/collapse-all
  * toggle. Used by the links index and by link-collection pages.
  *
  * OG preview images are fetched at build time (cached, best-effort).
  */
 import { fetchOgImage } from '@lib/og-image';
+import Badge from '@components/primitives/Badge.astro';
 
 export interface AccordionLink {
   url: string;
   title: string;
   description?: string;
+  tags?: string[];
 }
 
 export interface Props {
@@ -37,6 +39,11 @@ const previews = await Promise.all(links.map((link) => fetchOgImage(link.url)));
           <div class="link-panel-body">
             {link.description && <p class="link-panel-desc">{link.description}</p>}
             <a href={link.url} target="_blank" rel="noopener noreferrer" class="link-panel-visit">{link.url} ↗</a>
+            {link.tags?.length ? (
+              <div class="link-panel-tags">
+                {link.tags.map((tag) => <Badge variant="tag" href={`/blog/tags/${tag}`} size="sm">#{tag}</Badge>)}
+              </div>
+            ) : null}
           </div>
           {previews[i] && (
             <a href={link.url} target="_blank" rel="noopener noreferrer" class="link-panel-thumb" aria-label={`Visit ${link.title}`}>
@@ -133,6 +140,12 @@ const previews = await Promise.all(links.map((link) => fetchOgImage(link.url)));
     word-break: break-all;
   }
   .link-panel-visit:hover { text-decoration: underline; }
+  .link-panel-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+    margin-top: var(--space-sm);
+  }
 
   .link-panel-thumb {
     flex: none;
