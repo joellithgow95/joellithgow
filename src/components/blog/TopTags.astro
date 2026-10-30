@@ -32,8 +32,8 @@ const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCo
 
 {sorted.length > 0 && (
   <nav class="top-tags" aria-label="Top tags" data-top-tags data-step={step}>
+    <p class="tt-label">I post about</p>
     <p class="tt-line">
-      <span class="tt-label">I post about</span>
       {sorted.map(([tag, count], i) => (
         <Badge
           variant="tag"
@@ -72,9 +72,10 @@ const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCo
   @import '../../styles/tokens.css';
   @import '../../styles/themes.css';
 
+  /* The page sets the gap above to match this one below (--space-2xl) */
   .top-tags {
     margin: 0 0 var(--space-lg) 0;
-    padding-bottom: var(--space-lg);
+    padding-bottom: var(--space-2xl);
     border-bottom: 1px solid var(--gradient-primary-subtle);
   }
 
@@ -92,6 +93,7 @@ const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCo
 
   /* Eyebrow: the same mono caption as each post's date */
   .tt-label {
+    margin: 0 0 var(--space-sm) 0;
     font-family: var(--font-mono);
     font-size: var(--text-xs);
     letter-spacing: var(--tracking-wide);

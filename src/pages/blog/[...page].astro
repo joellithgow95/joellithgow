@@ -1108,8 +1108,12 @@ const jsonLd = {
   .blog-container {
     font-family: var(--font-body);
     background: none;
-    /* Header to top tags about matches top tags to the first post */
-    padding-top: var(--space-xl);
+    /* With the space below the wordmark, about --space-2xl down to the
+       top tags: the same gap TopTags leaves above its divider */
+    padding-top: var(--space-lg);
+  }
+  @media (max-width: 600px) {
+    .blog-container { padding-top: var(--space-xl); }
   }
 
   /* Two columns on laptop+ : feed (with its internal rail) + index sidebar */
