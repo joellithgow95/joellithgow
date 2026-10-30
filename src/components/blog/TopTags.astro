@@ -1,7 +1,8 @@
 ---
 /**
  * TopTags — "I post about #tag #tag …": the most-used tags on the blog,
- * as a line above the feed.
+ * as a block for the blog index. Not on any page yet; at 900px and under it
+ * puts its divider above itself, for use at the foot of a one-column page.
  *
  * Counts published posts only (what fetchBlogPosts() returns), so the
  * numbers match /blog/tags and the "N posts" heading on each tag page.
@@ -72,8 +73,7 @@ const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCo
   @import '../../styles/tokens.css';
   @import '../../styles/themes.css';
 
-  /* Above the feed, under a divider; the page sets the gap above to match this
-     one below (--space-2xl) */
+  /* Above the feed, under a divider */
   .top-tags {
     margin: 0 0 var(--space-lg) 0;
     padding-bottom: var(--space-2xl);

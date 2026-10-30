@@ -15,7 +15,6 @@ import Video from '@components/ui/Video.astro';
 import ImageGallery from '@components/modals/ImageGallery.astro';
 import AlbumMosaic from '@components/blog/AlbumMosaic.astro';
 import PostSlices from '@components/blog/slices/PostSlices.astro';
-import TopTags from '@components/blog/TopTags.astro';
 import { loadDataPool, resolveSlices } from '@lib/slices';
 
 export const getStaticPaths = (async () => {
@@ -173,9 +172,6 @@ const jsonLd = {
     <div class="blog-wrapper">
       {/* Main Content Column */}
       <div class="main-content">
-        {/* Most-used tags across every quarter, then the feed */}
-        <TopTags posts={allPosts} />
-
         {posts.length > 0 && (
           <section id="blog" class="featured-posts-section">
             {/* data-cms-list + the template below let the editor show unpublished
@@ -1107,9 +1103,11 @@ const jsonLd = {
   .blog-container {
     font-family: var(--font-body);
     background: none;
-    /* With the space below the wordmark, about --space-2xl down to the
-       top tags: the same gap TopTags leaves above its divider */
-    padding-top: var(--space-lg);
+  }
+  /* One column: about --space-2xl from the wordmark down to the Browse strip,
+     the same gap it leaves above its divider */
+  @media (max-width: 900px) {
+    .blog-container { padding-top: var(--space-lg); }
   }
   @media (max-width: 600px) {
     .blog-container { padding-top: var(--space-xl); }
@@ -1121,9 +1119,8 @@ const jsonLd = {
   .blog-wrapper {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 320px;
-    grid-template-rows: auto auto auto 1fr;
+    grid-template-rows: auto auto 1fr;
     grid-template-areas:
-      "tags side"
       "feed side"
       "qnav side"
       ". side";
@@ -1133,11 +1130,9 @@ const jsonLd = {
     align-items: start;
   }
   .main-content { display: contents; }
-  .blog-wrapper :global(.top-tags),
   .featured-posts-section,
   .blog-wrapper :global(.empty-state),
   .q-nav { min-width: 0; }
-  .blog-wrapper :global(.top-tags) { grid-area: tags; }
   .featured-posts-section,
   .blog-wrapper :global(.empty-state) { grid-area: feed; }
   .q-nav { grid-area: qnav; }
@@ -1443,8 +1438,7 @@ const jsonLd = {
       grid-template-areas:
         "side"
         "feed"
-        "qnav"
-        "tags";
+        "qnav";
       max-width: 920px;
     }
     .sidebar {
