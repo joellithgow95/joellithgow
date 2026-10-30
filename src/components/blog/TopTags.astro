@@ -1,7 +1,7 @@
 ---
 /**
  * TopTags — "I post about #tag #tag …": the most-used tags on the blog,
- * as a block at the foot of the blog index.
+ * as a line above the feed.
  *
  * Counts published posts only (what fetchBlogPosts() returns), so the
  * numbers match /blog/tags and the "N posts" heading on each tag page.
@@ -72,11 +72,22 @@ const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCo
   @import '../../styles/tokens.css';
   @import '../../styles/themes.css';
 
-  /* Sits at the foot of the page, under a divider */
+  /* Above the feed, under a divider; the page sets the gap above to match this
+     one below (--space-2xl) */
   .top-tags {
-    margin: var(--space-2xl) 0 0 0;
-    padding-top: var(--space-2xl);
-    border-top: 1px solid var(--gradient-primary-subtle);
+    margin: 0 0 var(--space-lg) 0;
+    padding-bottom: var(--space-2xl);
+    border-bottom: 1px solid var(--gradient-primary-subtle);
+  }
+
+  /* One-column view: moves to the foot of the page, divider above */
+  @media (max-width: 900px) {
+    .top-tags {
+      margin: var(--space-2xl) 0 0 0;
+      padding: var(--space-2xl) 0 0 0;
+      border-bottom: 0;
+      border-top: 1px solid var(--gradient-primary-subtle);
+    }
   }
 
   /* Same measure as a post's paragraphs, so it wraps where they do */
