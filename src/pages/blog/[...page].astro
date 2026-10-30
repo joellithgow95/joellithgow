@@ -348,11 +348,6 @@ const jsonLd = {
                       </div>
                     )}
 
-                    {'reading_time' in post && (post as any).reading_time && (
-                      <div class="post-meta">
-                        <span class="post-reading-time">{(post as any).reading_time} min read</span>
-                      </div>
-                    )}
                   </Card>
                   </div>
                 </article>
@@ -946,21 +941,6 @@ const jsonLd = {
     gap: var(--space-sm);
   }
 
-  .post-meta {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: var(--space-sm);
-    padding-top: var(--space-md);
-    border-top: var(--border-width) solid var(--gradient-primary-subtle);
-  }
-
-  .post-reading-time {
-    font-family: var(--font-family);
-    font-size: var(--text-sm);
-    color: var(--text-secondary);
-  }
-
   .empty-state {
     text-align: center;
     padding: var(--space-4xl) var(--space-xl);
@@ -1085,12 +1065,6 @@ const jsonLd = {
 
     .post-excerpt-preview {
       font-size: var(--text-sm);
-    }
-
-    .post-meta {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: var(--space-md);
     }
   }
 
