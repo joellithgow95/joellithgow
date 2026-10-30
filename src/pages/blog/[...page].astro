@@ -1218,7 +1218,7 @@ const jsonLd = {
   .log-record .post-quote {
     margin: 0 0 var(--space-md) 0;
     padding: 2px 0 2px var(--space-md);
-    border-left: 3px solid var(--accent-secondary);
+    border-left: 3px solid var(--accent-primary);
     font-family: var(--font-body);
     font-style: italic;
     font-size: var(--text-base);
@@ -1230,9 +1230,11 @@ const jsonLd = {
 
   /* Round 4: two sizes. A beat (no body, one pick) gets the small title and
      tight spacing; everything else stays the full post size. */
-  .log-record[data-size="beat"] { padding: var(--space-md) 0; }
-  .log-record[data-size="beat"] .post-title { font-size: var(--text-xl); margin-bottom: 0; }
+  /* Round 5: beats keep the post's spacing between records; inside, the
+     title is the size of a definition term inside a post (text-lg). */
+  .log-record[data-size="beat"] .post-title { font-size: var(--text-lg); margin-bottom: var(--space-sm); }
   .log-record[data-size="beat"] :global(.featured-post-card) { gap: var(--space-sm); }
+  .log-record[data-size="beat"] .post-tags { margin-top: var(--space-sm); }
   .log-record[data-size="beat"] .post-quote,
   .log-record[data-size="beat"] .post-content-preview { margin: 0; }
   .log-record[data-size="beat"] .post-content-preview :global(p) { margin: 0; }
@@ -1240,11 +1242,11 @@ const jsonLd = {
   /* Round 4: titles are links, so they look like links */
   .log-record .post-title-link {
     text-decoration: underline;
-    text-decoration-thickness: 1px;
     text-underline-offset: 0.15em;
-    text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+    text-decoration-thickness: 2px;
+    text-decoration-color: var(--accent-secondary);
   }
-  .log-record .post-title-link:hover { text-decoration-color: currentColor; }
+  .log-record .post-title-link:hover { color: var(--accent-secondary); }
   .log-record .post-quote :global(a) { color: inherit; }
   .log-record .post-quote :global(a):hover { color: var(--accent-primary); }
   .record-date-link { text-decoration: none; color: inherit; }
