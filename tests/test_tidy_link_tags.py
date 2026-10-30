@@ -60,6 +60,7 @@ async def test_tidy_tags_renames_drops_adds_and_dedupes():
     assert tidy.tidy_tags(["friends", "design-portfolio", "design", "visual-design"]) == ["friends", "design"]
     assert tidy.tidy_tags(["developer-blogs", "development", "tech-blog", "ai"]) == ["developer-blogs", "ai"]
     assert tidy.tidy_tags(["ai"], ["developer-blogs"]) == ["ai", "developer-blogs"]
+    assert tidy.tidy_tags(["books", "inspiration"]) == ["books", "inspo"]
 
 
 async def test_tidy_slices_turns_one_tag_into_a_list_and_leaves_the_rest():

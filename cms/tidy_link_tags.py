@@ -38,6 +38,7 @@ RENAME: dict[str, str | None] = {
     "visual-design": "design",
     "design-collective": "community",
     "collective": "community",
+    "inspiration": "inspo",  # the Honeyguide book joins the Inspo folder
     "development": None,  # every developer blog is already developer-blogs
     "tech-blog": None,
 }
