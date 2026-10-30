@@ -47,7 +47,7 @@ const pageDescription = 'Field notes from iNaturalist: every observation, day by
             {days.map((day) => (
               <article class="nature-outing">
                 <h2 class="nature-outing-title">
-                  {day.posts.length === 1 ? <a href={`/blog/${day.posts[0].slug}`}>{dayLabel(day.date)}</a> : dayLabel(day.date)}
+                  {dayLabel(day.date)}
                 </h2>
                 {day.place && <p class="nature-place">{day.place}</p>}
                 {day.photos.length > 0 && (
@@ -55,12 +55,9 @@ const pageDescription = 'Field notes from iNaturalist: every observation, day by
                     {day.photos.slice(0, 4).map((url) => <img src={thumb(url)} alt="iNaturalist observation photo" loading="lazy" />)}
                   </div>
                 )}
-                {day.species.length > 0 && <p class="nature-species">{day.species.slice(0, 12).join(' · ')}</p>}
+                {day.species.length > 0 && <p class="nature-species">{day.species.join(' · ')}</p>}
                 <p class="nature-meta">
                   {day.count} observation{day.count !== 1 ? 's' : ''}
-                  {day.posts.length > 1 && (
-                    <span> · in {day.posts.map((p, i) => <>{i > 0 && ', '}<a href={`/blog/${p.slug}`}>{p.title}</a></>)}</span>
-                  )}
                 </p>
               </article>
             ))}
