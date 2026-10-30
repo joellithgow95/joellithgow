@@ -69,7 +69,7 @@ for (const p of timeline) {
 const blockStarts = Array.from(blocks.keys()).sort((a, b) => a - b); // oldest → newest
 const currentBlockIndex = blockStarts.indexOf(blockKey(Number(currentKey.split('-q')[0])));
 
-// Get all posts for sidebar stats (need full collection, not just current page)
+// Get all posts for the Browse and top-tag counts (need full collection, not just current page)
 const allPosts = await fetchBlogPosts();
 
 // A post whose Markdown body is at most this long, with no excerpt, shows in
@@ -111,10 +111,10 @@ const slicesBySlug = new Map(
   ),
 );
 
-// Published link documents; feeds the sidebar "Links" card
+// Published link documents; feeds the "Links" card
 const totalLinks = (await loadDataPool()).links.length;
 
-// Document-type counts for the "Browse" sidebar cards. Music and Birds count
+// Document-type counts for the "Browse" cards. Music and Birds count
 // the posts that show songs or observations through a slice.
 const hasSlice = (post: (typeof allPosts)[number], types: string[]) =>
   post.kind === 'post' && Array.isArray((post as any).data) && (post as any).data.some((s: any) => types.includes(s?.block_type));
@@ -174,8 +174,18 @@ const jsonLd = {
     <div class="blog-wrapper">
       {/* Main Content Column */}
       <div class="main-content">
-        {/* Most-used tags across every quarter, then the feed */}
-        <TopTags posts={allPosts} />
+        {/* Browse the log by document type, then the feed */}
+        <nav class="browse" aria-label="Browse by type">
+          <p class="browse-label">Browse</p>
+          <div class="type-nav">
+            {typeNav.map((t) => (
+              <a href={t.href} class:list={['type-card', `type-card--${t.tone}`]}>
+                <span class="tc-label">{t.label}</span>
+                <span class="tc-count">{t.count}</span>
+              </a>
+            ))}
+          </div>
+        </nav>
 
         {posts.length > 0 && (
           <section id="blog" class="featured-posts-section">
@@ -364,6 +374,9 @@ const jsonLd = {
           </nav>
         )}
 
+        {/* Most-used tags across every quarter, at the foot of the page */}
+        <TopTags posts={allPosts} />
+
         {/* Empty state if no posts */}
         {posts.length === 0 && (
           <Card class="empty-state">
@@ -374,20 +387,6 @@ const jsonLd = {
           </Card>
         )}
       </div>
-
-      {/* Sidebar — browse the log by document type */}
-      <aside class="sidebar">
-        <h2 class="sidebar-heading">Browse</h2>
-        <nav class="type-nav" aria-label="Browse by type">
-          {typeNav.map((t) => (
-            <a href={t.href} class:list={['type-card', `type-card--${t.tone}`]}>
-              <span class="tc-label">{t.label}</span>
-              <span class="tc-count">{t.count}</span>
-              <span class="tc-arrow" aria-hidden="true">→</span>
-            </a>
-          ))}
-        </nav>
-      </aside>
     </div>
   </main>
 
@@ -480,25 +479,6 @@ const jsonLd = {
 
   .main-content {
     min-width: 0; /* Prevents grid blowout */
-  }
-
-  .sidebar {
-    position: sticky;
-    top: var(--space-3xl);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-xl);
-  }
-
-  .sidebar-heading {
-    font-family: var(--font-family);
-    font-size: var(--text-lg);
-    font-weight: var(--font-bold);
-    color: var(--text-primary);
-    margin: 0;
-    padding-bottom: var(--space-md);
-    border-bottom: var(--border-width) solid var(--gradient-primary-subtle);
-    letter-spacing: var(--tracking-tight);
   }
 
   /* Section Styles */
@@ -973,11 +953,6 @@ const jsonLd = {
       gap: var(--space-2xl);
     }
 
-    .sidebar {
-      position: relative;
-      top: 0;
-    }
-
     /* Archive posts still 2 columns on tablet */
     .archive-posts {
       grid-template-columns: repeat(2, 1fr);
@@ -1116,14 +1091,13 @@ const jsonLd = {
     .blog-container { padding-top: var(--space-xl); }
   }
 
-  /* Two columns on laptop+ : feed (with its internal rail) + index sidebar */
+  /* One column: Browse strip, the feed, then top tags. The column keeps the
+     width the feed had beside the old sidebar. */
   .blog-wrapper {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 320px;
-    column-gap: var(--space-2xl);
+    display: block;
     max-width: 1360px;
-    align-items: start;
   }
+  .main-content { max-width: 62rem; }
 
   /* Tighten the section rhythm around the feed */
   .featured-posts-section,
@@ -1265,35 +1239,33 @@ const jsonLd = {
     border-color: var(--gradient-primary-subtle);
   }
 
-  /* ---- Index sidebar (right column) — quiet, flat, to match the feed ---- */
-  .sidebar {
-    position: sticky;
-    top: var(--space-xl);
-    align-self: start;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-lg);
+  /* ---- Browse strip — brutalist cards against the calm feed ---- */
+  .browse {
+    margin: 0 0 var(--space-lg) 0;
+    padding-bottom: var(--space-2xl);
+    border-bottom: 1px solid var(--gradient-primary-subtle);
   }
-  .sidebar-heading {
+  /* Eyebrow: the same mono caption as each post's date */
+  .browse-label {
+    margin: 0 0 var(--space-md) 0;
     font-family: var(--font-mono);
-    font-size: var(--text-sm);
-    font-weight: var(--font-bold);
-    text-transform: uppercase;
+    font-size: var(--text-xs);
     letter-spacing: var(--tracking-wide);
-    padding-bottom: var(--space-sm);
-    border-bottom: 2px solid var(--text-primary);
+    color: var(--text-secondary);
   }
-  /* Browse-by-type cards — brutalist energy against the calm feed */
   .type-nav {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
     gap: var(--space-md);
+    /* Room for the card shadows inside the divider */
+    padding-right: var(--space-xs);
   }
   .type-card {
     display: flex;
     align-items: baseline;
+    justify-content: space-between;
     gap: var(--space-sm);
-    padding: var(--space-md) var(--space-lg);
+    padding: var(--space-sm) var(--space-md);
     font-family: var(--font-mono);
     text-decoration: none;
     border: var(--border-width) solid var(--bg-dark);
@@ -1310,7 +1282,7 @@ const jsonLd = {
     outline-offset: 3px;
   }
   .tc-label {
-    font-size: var(--text-lg);
+    font-size: var(--text-base);
     font-weight: var(--font-bold);
     letter-spacing: var(--tracking-tight);
   }
@@ -1318,13 +1290,6 @@ const jsonLd = {
     font-size: var(--text-sm);
     opacity: 0.75;
   }
-  .tc-arrow {
-    margin-left: auto;
-    font-size: var(--text-lg);
-    font-weight: var(--font-bold);
-    transition: transform var(--duration-base) var(--ease-out);
-  }
-  .type-card:hover .tc-arrow { transform: translateX(4px); }
 
   /* Tones cycle the brand accents, like the homepage cards */
   .type-card--primary { background: var(--accent-primary); color: var(--card-alt-text-1); }
@@ -1412,20 +1377,6 @@ const jsonLd = {
     outline: 2px solid var(--accent-primary);
     outline-offset: 2px;
     border-radius: 2px;
-  }
-
-  /* ---- Tablet/phone: drop to a single column, sidebar moves below ---- */
-  @media (max-width: 900px) {
-    .blog-wrapper {
-      display: block;
-      max-width: 920px;
-    }
-    .sidebar {
-      position: static;
-      margin-top: var(--space-2xl);
-      padding-top: var(--space-lg);
-      border-top: 2px solid var(--text-primary);
-    }
   }
 
 </style>
