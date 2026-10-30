@@ -269,9 +269,9 @@ const jsonLd = {
                   data-cms-type={isEditorial ? 'blog_post' : undefined}
                 >
                   <div class="record-body">
-                    <a href={UNIFIED ? postHref : undefined} class="record-date-link"><time class="record-date" datetime={new Date(post.publish_date).toISOString()}>
+                    {!isBeat && <a href={UNIFIED ? postHref : undefined} class="record-date-link"><time class="record-date" datetime={new Date(post.publish_date).toISOString()}>
                       {new Date(post.publish_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
-                    </time></a>
+                    </time></a>}
                   <Card variant="flat" as="article" class="featured-post-card" data-post-type={post.kind}>
                     <h2 class="post-title">
                       <a
@@ -1217,7 +1217,7 @@ const jsonLd = {
   /* Round 2: a picked definition, right under the title */
   .log-record .post-quote {
     margin: 0 0 var(--space-md) 0;
-    padding: 2px 0 2px var(--space-md);
+    padding: 2px 0 2px var(--space-sm);
     border-left: 3px solid var(--accent-primary);
     font-family: var(--font-body);
     font-style: italic;
@@ -1230,9 +1230,10 @@ const jsonLd = {
 
   /* Round 4: two sizes. A beat (no body, one pick) gets the small title and
      tight spacing; everything else stays the full post size. */
-  /* Round 5: beats keep the post's spacing between records; inside, the
-     title is the size of a definition term inside a post (text-lg). */
-  .log-record[data-size="beat"] .post-title { font-size: var(--text-lg); margin-bottom: var(--space-sm); }
+  /* Beats: no date, less space between dividers (16px vs a post's 24px), and
+     the title at the size of a subheading inside a post (h2, text-xl). */
+  .log-record[data-size="beat"] { padding: var(--space-md) 0; }
+  .log-record[data-size="beat"] .post-title { font-size: var(--text-xl); margin-bottom: var(--space-sm); }
   .log-record[data-size="beat"] :global(.featured-post-card) { gap: var(--space-sm); }
   .log-record[data-size="beat"] .post-tags { margin-top: var(--space-sm); }
   .log-record[data-size="beat"] .post-quote,
