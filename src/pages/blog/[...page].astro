@@ -226,6 +226,8 @@ const jsonLd = {
                 const pickedDefs = onlyDefinitions(post.slug);
                 const pickedLink = onlyLink(post.slug);
                 const isBeat = !!(pickedDefs || pickedLink) && !body.trim();
+                // A card cut short has no other way to the rest, so its title leads to the post page
+                const isCut = !isBeat && !pickedLink && !excerpt && !showsFullBody;
                 const defTitle = pickedDefs && (pickedDefs.length === 1 || isBeat) ? pickedDefs : null;
                 // The quote marks around a definition title are red
                 const titleMarkup = defTitle
@@ -257,6 +259,10 @@ const jsonLd = {
                       >
                         <span>{titleMarkup}</span><span class="post-title-ext" aria-label="external link"> ↗</span>
                       </a>
+                      ) : isCut ? (
+                        <a href={postHref} class="post-title-link">
+                          <span data-cms-field={defTitle ? undefined : 'title'}>{titleMarkup}</span>
+                        </a>
                       ) : (
                         <span class="post-title-text" data-cms-field={defTitle ? undefined : 'title'}>{titleMarkup}</span>
                       )
