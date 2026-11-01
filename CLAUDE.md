@@ -105,12 +105,13 @@ mounted in-process on the CMS app. So MCP runs as its own process:
     (Caddy rewrites `/mcp/gateway` → `/mcp` since the MCP server serves at `/mcp`. It is not
     `/gateways`: the CMS serves the gateway admin UI there.)
 
-**Writing into a post body someone may have open (astraeus ADR 027).** The body has one writer, the
-editor's collab authority. To add a section or paragraph, use `insert_into_document` (markdown, at the
-end, start or after a heading): it lands in the live draft and an open editor shows it appear, with the
-person's typing kept. `update_document` with a body replaces the whole field, so it needs `base_version`
-(the `draft_version` from `get_document`, which reads the draft) and is refused if the post changed since,
-or while it is open in the editor without one. Title, tags, image and other plain fields need no version.
+**Editing a post someone may have open (astraeus ADR 027: every field is live).** The body has one
+writer, the editor's collab authority. Change it with `edit_document_body`: a list of anchored edits
+(`{find, replace}` with text copied exactly from `get_document`, empty replace deletes; `{section, replace}`
+by heading; `{insert, after_heading | at}`), applied to the live draft all or nothing. An open editor
+shows them land with the person's typing kept; if a `find` was just retyped, nothing is applied and the
+error says which edit. `get_document` reads the draft. `update_document` is for plain fields (title, tags,
+image); a body passed there replaces the whole field, so it needs `base_version` and is refused if stale.
 
 Deploy: they run the same image as the CMS, so a tool change ships with the image-pin bump in
 jlithgow-ops (see *Where prod runs*). The `mcp-deploy` / `caddy-deploy` targets only touch the EC2 fallback.
