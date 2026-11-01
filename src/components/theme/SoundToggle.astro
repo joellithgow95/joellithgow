@@ -1,0 +1,112 @@
+---
+/**
+ * SoundToggle — the on/off switch for click music, drawn as one more node
+ * beside the ThemeConstellation (same ink ring, hard shadow and lift) with a
+ * speaker glyph. Off by default; turning it on plays a note in the current
+ * theme's voice so you hear what you just turned on. The setting is
+ * sitewide: BaseLayout's listener reads it on every page.
+ */
+const R = 20;
+const SHADOW = 4;
+const SIZE = R * 2 + SHADOW + 8;
+const C = R + 4;
+---
+
+<button
+  type="button"
+  class="sound-toggle"
+  aria-pressed="false"
+  aria-label="Click sounds"
+  title="Click sounds"
+>
+  <svg viewBox={`0 0 ${SIZE} ${SIZE}`} width={SIZE} height={SIZE} aria-hidden="true">
+    <circle class="st-shadow" cx={C + SHADOW} cy={C + SHADOW} r={R} />
+    <g class="st-face">
+      <circle class="st-fill" cx={C} cy={C} r={R} />
+      <g transform={`translate(${C - 10} ${C - 9})`}>
+        {/* speaker */}
+        <path class="st-glyph-fill" d="M1 6h4l5-4.5v15L5 12H1z" />
+        {/* waves, shown when on */}
+        <path class="st-wave" d="M13 5.5q2.6 3.5 0 7" />
+        <path class="st-wave st-wave-2" d="M15.6 3q4.4 6 0 12" />
+        {/* slash, shown when off */}
+        <path class="st-slash" d="M13 5.5l6 7M19 5.5l-6 7" />
+      </g>
+      <circle class="st-ring" cx={C} cy={C} r={R} />
+    </g>
+  </svg>
+</button>
+
+<style>
+  @import '../../styles/tokens.css';
+  @import '../../styles/themes.css';
+
+  .sound-toggle {
+    appearance: none;
+    background: none;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    line-height: 0;
+    flex: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .sound-toggle svg { overflow: visible; }
+
+  .st-shadow { fill: var(--bg-dark); }
+  .st-fill { fill: var(--bg-primary); }
+  .st-ring { fill: none; stroke: var(--bg-dark); stroke-width: 2; }
+  .st-glyph-fill { fill: var(--bg-dark); }
+  .st-wave,
+  .st-slash {
+    fill: none;
+    stroke: var(--bg-dark);
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+  .st-wave { display: none; }
+
+  .st-face {
+    transform-box: fill-box;
+    transition: transform var(--duration-base) var(--ease-out);
+  }
+  .sound-toggle:hover .st-face,
+  .sound-toggle:focus-visible .st-face { transform: translate(-3px, -3px); }
+  .sound-toggle:focus { outline: none; }
+  .sound-toggle:focus-visible .st-ring { stroke-width: 3.5; }
+
+  /* On: accent face, waves instead of the slash, heavier ring like the active theme */
+  .sound-toggle[aria-pressed='true'] .st-fill { fill: var(--accent-primary); }
+  .sound-toggle[aria-pressed='true'] .st-ring { stroke-width: 4; }
+  .sound-toggle[aria-pressed='true'] .st-wave { display: inline; }
+  .sound-toggle[aria-pressed='true'] .st-slash { display: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .st-face { transition: none; }
+  }
+</style>
+
+<script>
+  import { isEnabled, setEnabled, play, CHANGE_EVENT } from '@features/click-music';
+
+  function init(btn: HTMLButtonElement) {
+    if (btn.dataset.stInit) return;
+    btn.dataset.stInit = '1';
+
+    const sync = () => btn.setAttribute('aria-pressed', String(isEnabled()));
+    btn.addEventListener('click', () => {
+      const on = !isEnabled();
+      setEnabled(on);
+      if (on) play('left');
+    });
+    window.addEventListener(CHANGE_EVENT, sync);
+    sync();
+  }
+
+  function initAll() {
+    document.querySelectorAll<HTMLButtonElement>('.sound-toggle').forEach(init);
+  }
+  initAll();
+  document.addEventListener('astro:page-load', initAll);
+</script>
