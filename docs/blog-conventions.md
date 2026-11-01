@@ -89,7 +89,9 @@ Only then, longer drafting is fine. Joel's posts, going by the existing ones, ar
 
 ## Tags
 
-Tags are lowercase and hyphenated. Reuse the existing ones where they fit before inventing new ones. The most common in the current posts: `claude-code`, `tools`, `resources`, `links`, `game-design`, `design`, `ai`. Others include `minecraft`, `modding`, `learning`, `dev-journal`, `cli` and `reflection`.
+Tags are lowercase and hyphenated. Reuse an existing one where it fits before inventing a new one, and say so when you add a new one.
+
+The set of tags changes with the content, so it is not listed here. Call the `list_tags` MCP tool (`doc_type` `blog_post` or `link`) to see what is in use and how often. `create_document` and `update_document` then answer with `tag_notes` for any tag no other document of that type uses, naming the closest existing ones; it never blocks a save, so a genuinely new tag is fine. Posts and links share one tag namespace on `/blog/tags/<tag>`, and some link tags (`developer-blogs`, `inspo`, `friends`, `reading`) name a collection, so check `list_tags` for `link` before tagging a link.
 
 ## Publishing
 
