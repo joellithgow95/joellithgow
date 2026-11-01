@@ -43,8 +43,9 @@ const bodyBlockSchema = z.object({
 // Blog post schema
 // ---------------------------------------------------------------------------
 
-// Mirrors DoodleField's stored shape (astraeus starlette_cms.fields.DoodleField):
-// one SVG path, its viewBox, and a per-breakpoint placement spec. Each axis key
+// Mirrors astraeus starlette_cms.drawing: a drawing is a viewBox and its SVG
+// paths (one per stroke, each with its own stroke and fill); a doodle is a
+// drawing plus a per-breakpoint placement spec. Each axis key
 // is independent, so top/left and right/bottom can differ per breakpoint.
 const placementAxisSchema = z.object({
   value: z.number(),
@@ -60,13 +61,21 @@ const placementSpecSchema = z.object({
   width: placementAxisSchema.optional(),
 });
 
+const drawingSchema = z.object({
+  viewbox: z.string(),
+  paths: z.array(z.object({
+    d: z.string(),
+    stroke: z.string().optional(),
+    stroke_width: z.number().optional(),
+    fill: z.string().optional(),
+    opacity: z.number().optional(),
+  })),
+  symmetry: z.enum(['vertical', 'horizontal']).optional(),
+});
+
 const doodleSchema = z.object({
   id: z.string(),
-  path_data: z.string(),
-  viewbox: z.string(),
-  stroke: z.string().optional(),
-  stroke_width: z.number().optional(),
-  fill: z.string().optional(),
+  drawing: drawingSchema,
   z_index: z.number().optional(),
   placement: z.object({
     base: placementSpecSchema,
@@ -422,6 +431,7 @@ export type InterviewRound = z.infer<typeof interviewRoundSchema>;
 export type StatusEvent = z.infer<typeof statusEventSchema>;
 export type BlogPost = z.infer<typeof blogPostSchema>;
 export type Doodle = z.infer<typeof doodleSchema>;
+export type Drawing = z.infer<typeof drawingSchema>;
 export type ProjectPage = z.infer<typeof projectPageSchema>;
 export type ExperienceEntry = z.infer<typeof experienceEntrySchema>;
 export type Definition = z.infer<typeof definitionSchema>;

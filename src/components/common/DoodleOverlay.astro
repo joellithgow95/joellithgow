@@ -1,5 +1,6 @@
 ---
 import type { Doodle, PlacementSpec } from '@lib/astraeus-types';
+import DrawingSvg from './DrawingSvg.astro';
 
 export interface Props {
   doodles?: Doodle[] | null;
@@ -55,19 +56,12 @@ const overrideCss = list
    underneath it (title, image, body). */}
 <div class="doodle-overlay" aria-hidden="true">
   {list.map((d) => (
-    <svg
+    <DrawingSvg
       class="doodle-overlay__item"
       data-doodle-id={d.id}
-      viewBox={d.viewbox}
+      drawing={d.drawing}
       style={`${declBlock(d.placement.base)} z-index: ${d.z_index ?? 1};`}
-    >
-      <path
-        d={d.path_data}
-        stroke={d.stroke ?? 'currentColor'}
-        stroke-width={d.stroke_width ?? 2}
-        fill={d.fill ?? 'none'}
-      />
-    </svg>
+    />
   ))}
 </div>
 
@@ -94,7 +88,7 @@ const overrideCss = list
     /* Above decorative backgrounds (z-index: -1), below real content. */
     z-index: 1;
   }
-  .doodle-overlay__item {
+  .doodle-overlay :global(.doodle-overlay__item) {
     position: absolute;
     overflow: visible;
   }

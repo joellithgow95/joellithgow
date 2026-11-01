@@ -1,0 +1,31 @@
+---
+/**
+ * One hand-drawn shape (astraeus starlette_cms.drawing.Drawing) as inline SVG.
+ * Shared by doodles and, next, taste shapes. Strokes default to currentColor,
+ * so a drawing follows the theme it sits in.
+ */
+import type { Drawing } from '@lib/astraeus-types';
+
+export interface Props {
+  drawing: Drawing;
+  class?: string;
+  style?: string;
+  [attr: `data-${string}`]: string | undefined;
+}
+
+const { drawing, class: className, style, ...rest } = Astro.props;
+---
+
+<svg class={className} style={style} viewBox={drawing.viewbox} {...rest}>
+  {drawing.paths.map((p) => (
+    <path
+      d={p.d}
+      stroke={p.stroke ?? 'currentColor'}
+      stroke-width={p.stroke_width ?? 2}
+      fill={p.fill ?? 'none'}
+      opacity={p.opacity}
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+  ))}
+</svg>

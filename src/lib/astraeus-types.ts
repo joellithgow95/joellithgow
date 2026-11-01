@@ -45,14 +45,26 @@ export interface PlacementSpec {
   width?: PlacementAxis;
 }
 
-/** Mirrors DoodleField's stored shape (astraeus starlette_cms.fields.DoodleField). */
-export interface Doodle {
-  id: string;
-  path_data: string;
-  viewbox: string;
+/** One stroke or filled area of a drawing. */
+export interface DrawingPath {
+  d: string;
   stroke?: string;
   stroke_width?: number;
   fill?: string;
+  opacity?: number;
+}
+
+/** A hand-drawn shape (astraeus starlette_cms.drawing.Drawing). */
+export interface Drawing {
+  viewbox: string;
+  paths: DrawingPath[];
+  symmetry?: 'vertical' | 'horizontal';
+}
+
+/** A drawing placed on a page (astraeus starlette_cms.drawing.Doodle). */
+export interface Doodle {
+  id: string;
+  drawing: Drawing;
   z_index?: number;
   placement: {
     base: PlacementSpec;
