@@ -2,6 +2,7 @@
 import BaseLayout from '@components/common/BaseLayout.astro';
 import ThemeModal from '@components/modals/ThemeModal.astro';
 import ThemeConstellation from '@components/theme/ThemeConstellation.astro';
+import SoundToggle from '@components/theme/SoundToggle.astro';
 import Card from '@components/primitives/Card.astro';
 
 const pageTitle = 'Joel Lithgow - Creative Technologist';
@@ -30,6 +31,7 @@ const pageDescription = 'Creative technologist who builds things and writes abou
           <!-- Theme picker constellation (replaces the floating toggle here) -->
           <div class="theme-picker">
             <ThemeConstellation />
+            <SoundToggle />
           </div>
         </div>
 
@@ -252,7 +254,9 @@ const pageDescription = 'Creative technologist who builds things and writes abou
     margin-top: var(--space-2xl);
     width: 100%;
     display: flex;
+    align-items: center;
     justify-content: center;
+    gap: var(--space-md);
   }
 
   /* Mobile adjustments */

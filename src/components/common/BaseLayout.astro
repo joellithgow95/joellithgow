@@ -179,6 +179,12 @@ const {
   {showGlobalHeader && <GlobalHeader />}
 
   <slot />
+
+  <!-- Click music Easter egg: off until turned on from the home page's speaker node -->
+  <script>
+    import { initClickMusic } from '@features/click-music';
+    initClickMusic();
+  </script>
   
   <!-- Screen reader only content -->
   <div class="sr-only">
