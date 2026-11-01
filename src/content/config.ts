@@ -43,6 +43,37 @@ const bodyBlockSchema = z.object({
 // Blog post schema
 // ---------------------------------------------------------------------------
 
+// Mirrors DoodleField's stored shape (astraeus starlette_cms.fields.DoodleField):
+// one SVG path, its viewBox, and a per-breakpoint placement spec. Each axis key
+// is independent, so top/left and right/bottom can differ per breakpoint.
+const placementAxisSchema = z.object({
+  value: z.number(),
+  unit: z.string(),
+});
+
+const placementSpecSchema = z.object({
+  mode: z.enum(['static', 'absolute']),
+  top: placementAxisSchema.optional(),
+  left: placementAxisSchema.optional(),
+  right: placementAxisSchema.optional(),
+  bottom: placementAxisSchema.optional(),
+  width: placementAxisSchema.optional(),
+});
+
+const doodleSchema = z.object({
+  id: z.string(),
+  path_data: z.string(),
+  viewbox: z.string(),
+  stroke: z.string().optional(),
+  stroke_width: z.number().optional(),
+  fill: z.string().optional(),
+  z_index: z.number().optional(),
+  placement: z.object({
+    base: placementSpecSchema,
+    overrides: z.record(z.string(), placementSpecSchema).optional(),
+  }),
+});
+
 const blogPostSchema = z.object({
   slug: z.string(),  // convenience alias for entry.id, injected by loader from CMS system field
   title: z.string(),
@@ -58,6 +89,8 @@ const blogPostSchema = z.object({
    *  discriminator is checked here: an unexpected shape is skipped by
    *  src/lib/slices.ts rather than failing the build. */
   data: z.array(z.object({ block_type: z.string() }).passthrough()).nullable().optional(),
+  /** Decorative SVG doodles drawn on the page (DoodleOverlay.astro) */
+  doodles: z.array(doodleSchema).nullable().optional(),
   featured: z.boolean().optional(),
   /** null = reading time explicitly unset; absent = not calculated */
   reading_time: z.number().nullable().optional(),
@@ -388,6 +421,7 @@ export type Application = z.infer<typeof applicationSchema>;
 export type InterviewRound = z.infer<typeof interviewRoundSchema>;
 export type StatusEvent = z.infer<typeof statusEventSchema>;
 export type BlogPost = z.infer<typeof blogPostSchema>;
+export type Doodle = z.infer<typeof doodleSchema>;
 export type ProjectPage = z.infer<typeof projectPageSchema>;
 export type ExperienceEntry = z.infer<typeof experienceEntrySchema>;
 export type Definition = z.infer<typeof definitionSchema>;
