@@ -1,0 +1,121 @@
+---
+/**
+ * TastesSlice — taste shapes a post shows (taste_picks, tastes_range). Three forms:
+ * - beat: a feed beat about one item: the shape, the photo beside it if any, the note.
+ * - compact: a post's feed card: a row of shapes with names.
+ * - full: the post page: each shape large with its name, details and photo.
+ */
+import DrawingSvg from '@components/common/DrawingSvg.astro';
+import { tasteAnchor, tastePhotoUrl, type TasteShape } from '@lib/tastes';
+
+export interface Props {
+  tastes: TasteShape[];
+  compact?: boolean;
+  beat?: boolean;
+}
+
+const { tastes, compact = false, beat = false } = Astro.props;
+const href = (t: TasteShape) => `/blog/tastes#${tasteAnchor(t)}`;
+const photo = (t: TasteShape, w?: number) => tastePhotoUrl(t.photo, w);
+const date = (d: string) =>
+  new Date(`${d}T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+const meta = (t: TasteShape) => [t.kind, t.place, date(t.tasted_on)].filter(Boolean).join(' · ');
+const one = beat && tastes.length === 1 ? tastes[0] : null;
+---
+
+{one ? (
+  <section class="slice slice--tastes tastes-beat">
+    <a href={href(one)} class="taste-paper taste-paper--beat" aria-label={`${one.name} taste shape`}>
+      {one.shape ? <DrawingSvg drawing={one.shape} pencil class="taste-svg" /> : <span class="taste-blank">{one.name}</span>}
+    </a>
+    {one.photo && <img class="taste-photo taste-photo--beat" src={photo(one, 300)} alt={one.name} loading="lazy" />}
+    <div class="tastes-beat-text">
+      {one.note && <p class="taste-note">{one.note}</p>}
+      <p class="taste-meta">{meta(one)}</p>
+    </div>
+  </section>
+) : compact ? (
+  <section class="slice slice--tastes">
+    <div class="tastes-row">
+      {tastes.slice(0, 6).map((t) => (
+        <a href={href(t)} class="taste-tile">
+          <span class="taste-paper">{t.shape ? <DrawingSvg drawing={t.shape} pencil class="taste-svg" /> : <span class="taste-blank">{t.name}</span>}</span>
+          <span class="taste-name">{t.name}</span>
+        </a>
+      ))}
+    </div>
+    <p class="slice-count">{tastes.length} taste shape{tastes.length !== 1 ? 's' : ''}</p>
+  </section>
+) : (
+  <section class="slice slice--tastes">
+    <div class="tastes-full">
+      {tastes.map((t) => (
+        <figure class="taste-entry" id={tasteAnchor(t)}>
+          <div class="taste-entry-pics">
+            <span class="taste-paper taste-paper--large">{t.shape ? <DrawingSvg drawing={t.shape} pencil class="taste-svg" /> : <span class="taste-blank">{t.name}</span>}</span>
+            {t.photo && <img class="taste-photo" src={photo(t)} alt={t.name} loading="lazy" />}
+          </div>
+          <figcaption>
+            <a href={href(t)} class="taste-name taste-name--large">{t.name}</a>
+            <p class="taste-meta">{meta(t)}</p>
+            {t.note && <p class="taste-note">{t.note}</p>}
+          </figcaption>
+        </figure>
+      ))}
+    </div>
+  </section>
+)}
+
+<style>
+  @import '../../../styles/tokens.css';
+
+  .slice { margin: var(--space-lg) 0; }
+  .slice-count { font-size: var(--text-xs); color: var(--text-secondary); margin: var(--space-sm) 0 0 0; }
+
+  /* The shape always sits on its own square of light paper, in any theme: its colours are its own */
+  .taste-paper {
+    display: block;
+    aspect-ratio: 1;
+    background: #fbfaf7;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    padding: 8px;
+    box-sizing: border-box;
+  }
+  .taste-blank { display: flex; align-items: center; justify-content: center; height: 100%; text-align: center; font-size: var(--text-xs); color: #6b7078; }
+  .taste-paper :global(.taste-svg) { width: 100%; height: 100%; display: block; overflow: visible; }
+  .taste-photo { display: block; aspect-ratio: 1; object-fit: cover; border-radius: var(--radius-sm); }
+
+  /* Beat */
+  .tastes-beat { display: flex; gap: var(--space-md); align-items: flex-start; margin: var(--space-sm) 0 0 0; }
+  .taste-paper--beat { width: 120px; flex: none; }
+  .taste-photo.taste-photo--beat { width: 120px; flex: none; }
+  .tastes-beat-text { min-width: 0; }
+  .taste-note { margin: 0 0 var(--space-xs) 0; color: var(--text-primary); font-style: italic; }
+  .taste-meta { margin: 0; font-size: var(--text-xs); color: var(--text-secondary); text-transform: none; }
+
+  /* Feed card row */
+  .tastes-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: var(--space-sm); }
+  .taste-tile { display: flex; flex-direction: column; gap: var(--space-xs); text-decoration: none; color: inherit; }
+  .taste-name { font-size: var(--text-xs); color: var(--text-secondary); line-height: 1.3; }
+  .taste-tile:hover .taste-name { color: var(--accent-primary); }
+
+  /* Post page */
+  .tastes-full { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-lg); }
+  .taste-entry { margin: 0; }
+  .taste-entry-pics { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm); }
+  .taste-entry-pics:has(> :only-child) { grid-template-columns: 1fr; max-width: 50%; }
+  .taste-photo { width: 100%; }
+  .taste-name--large {
+    display: block; margin-top: var(--space-sm);
+    font-family: var(--font-display); font-size: var(--text-lg); color: var(--text-primary);
+    text-decoration: underline; text-decoration-color: var(--accent-secondary); text-underline-offset: 3px;
+  }
+
+  @media (max-width: 480px) {
+    .taste-paper--beat, .taste-photo.taste-photo--beat { width: 96px; }
+    .tastes-beat { flex-wrap: wrap; }
+    .tastes-beat-text { flex-basis: 100%; }
+  }
+</style>

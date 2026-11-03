@@ -148,6 +148,7 @@ async def test_slice_kinds_are_described_in_the_schema(client):
     described = {d["properties"]["block_type"]["const"]: d.get("description", "") for d in defs.values() if "block_type" in d.get("properties", {})}
     assert set(described) == {
         "music_range", "nature_range", "music_picks", "nature_picks", "definition_picks", "link_picks", "links_by_tag",
+        "tastes_range", "taste_picks",
     }
     assert all(described.values())
 
@@ -179,3 +180,54 @@ async def test_a_post_still_carrying_links_saves_without_them(client):
     resp = await _create(client, "blog_post", body)
     assert resp.status_code == 201, resp.text
     assert "links" not in resp.json()["body"]
+
+
+# ── Taste shapes ─────────────────────────────────────────────────────────────
+
+SHAPE = {
+    "viewbox": "0 0 100 100",
+    "paths": [{"d": "M 50 10 Q 70 40 50 90 Q 30 40 50 10 Z", "stroke": "#1d2126", "stroke_width": 1.5, "fill": "#7a2e4a"}],
+    "symmetry": "vertical",
+}
+
+
+async def _taste(client: httpx.AsyncClient, **body) -> str:
+    return await _id(client, "taste_shape", {"name": "Ridge Lytton Springs 2021", "kind": "wine", "tasted_on": "2026-11-02", **body})
+
+
+async def test_a_taste_shape_saves_with_or_without_a_shape_and_photo(client):
+    bare = await _create(client, "taste_shape", {"name": "Nuggets", "kind": "food", "tasted_on": "2026-11-01"})
+    assert bare.status_code == 201, bare.text
+    full = await _create(
+        client,
+        "taste_shape",
+        {"name": "Zin", "kind": "wine", "tasted_on": "2026-11-02", "shape": SHAPE, "photo": "originals/ab12/zin.jpg"},
+    )
+    assert full.status_code == 201, full.text
+    assert full.json()["body"]["shape"] == SHAPE
+
+
+async def test_a_taste_shape_refuses_a_bad_shape_or_kind(client):
+    bad_shape = await _create(
+        client, "taste_shape", {"name": "x", "kind": "wine", "tasted_on": "2026-11-02", "shape": {"viewbox": "0 0 100 100", "paths": [{"d": "<b>"}]}}
+    )
+    assert bad_shape.status_code == 422
+    bad_kind = await _create(client, "taste_shape", {"name": "x", "kind": "soup?", "tasted_on": "2026-11-02"})
+    assert bad_kind.status_code == 422
+
+
+async def test_taste_slices_save_and_check_their_refs(client):
+    taste = await _taste(client, shape=SHAPE)
+    data = [
+        {"block_type": "taste_picks", "refs": [taste]},
+        {"block_type": "tastes_range", "from_date": "2026-11-01", "to_date": "2026-11-30"},
+    ]
+    ok = await _create(client, "blog_post", _post(data))
+    assert ok.status_code == 201, ok.text
+    song = await _song(client)
+    wrong_type = await _create(client, "blog_post", _post([{"block_type": "taste_picks", "refs": [song]}]))
+    assert wrong_type.status_code == 422
+    backwards = await _create(
+        client, "blog_post", _post([{"block_type": "tastes_range", "from_date": "2026-11-30", "to_date": "2026-11-01"}])
+    )
+    assert backwards.status_code == 422

@@ -20,6 +20,7 @@ import type {
   Slice,
   SpotifyLike,
 } from './astraeus-types';
+import type { TasteShape } from './tastes';
 
 export type Song = AstraeusDocument<SpotifyLike>;
 export type Observation = AstraeusDocument<INatObservation>;
@@ -30,13 +31,15 @@ export type ResolvedSlice =
   | { kind: 'music'; songs: Song[] }
   | { kind: 'nature'; observations: Observation[] }
   | { kind: 'definitions'; definitions: Entry[] }
-  | { kind: 'links'; links: Link[]; tags?: string[] };
+  | { kind: 'links'; links: Link[]; tags?: string[] }
+  | { kind: 'tastes'; tastes: TasteShape[] };
 
 export interface DataPool {
   songs: Song[];
   observations: Observation[];
   definitions: Entry[];
   links: Link[];
+  tastes: TasteShape[];
 }
 
 let pool: Promise<DataPool> | undefined;
@@ -44,17 +47,19 @@ let pool: Promise<DataPool> | undefined;
 /** Every published data document, loaded once per build. */
 export function loadDataPool(): Promise<DataPool> {
   pool ??= (async () => {
-    const [songs, observations, definitions, links] = await Promise.all([
+    const [songs, observations, definitions, links, tastes] = await Promise.all([
       getCollection('spotify_likes'),
       getCollection('inat_observations'),
       getCollection('definitions'),
       getCollection('links'),
+      getCollection('taste_shapes'),
     ]);
     return {
       songs: songs.map((e) => e.data as Song),
       observations: observations.map((e) => e.data as Observation),
       definitions: definitions.map((e) => e.data as Entry),
       links: links.map((e) => e.data as Link),
+      tastes: tastes.map((e) => e.data as TasteShape),
     };
   })();
   return pool;
@@ -99,6 +104,16 @@ export function resolveSlice(slice: Slice | Record<string, unknown>, data: DataP
       return { kind: 'definitions', definitions: pick(data.definitions, s.refs) };
     case 'link_picks':
       return { kind: 'links', links: pick(data.links, s.refs) };
+    case 'taste_picks':
+      return { kind: 'tastes', tastes: pick(data.tastes, s.refs) };
+    case 'tastes_range':
+      if (!ranged) return null;
+      return {
+        kind: 'tastes',
+        tastes: data.tastes
+          .filter((x) => inRange(x.tasted_on, s.from_date, s.to_date))
+          .sort((a, b) => a.tasted_on.localeCompare(b.tasted_on)),
+      };
     case 'links_by_tag': {
       // Any of `tags`; a slice saved before collections could name several tags holds one `tag`.
       const tags: string[] | null = Array.isArray(s.tags) ? s.tags : typeof s.tag === 'string' ? [s.tag] : null;
@@ -117,6 +132,7 @@ function isEmpty(r: ResolvedSlice): boolean {
     case 'nature': return r.observations.length === 0;
     case 'definitions': return r.definitions.length === 0;
     case 'links': return r.links.length === 0;
+    case 'tastes': return r.tastes.length === 0;
   }
 }
 

@@ -11,6 +11,7 @@ Content is either a **post** (something Joel writes) or **data** (a record a pos
 | An opinion, devlog, explainer, short thought or list of links | `blog_post` | post | The only post type; see below |
 | A term and what it means | `definition` | data | Keeps its own page under `/blog/dictionary/`; see *Definitions* |
 | A link worth keeping (a blog, a tool, an article) | `link` | data | Stored once; posts show it with `link_picks` or `links_by_tag` |
+| A shape drawn for how something tastes | `taste_shape` | data | Drawn in the editor; posts show it with `taste_picks` or `tastes_range`; see *Taste shapes* |
 | A case study | `project_page` | | |
 | A job on the resume | `experience_entry` | | |
 
@@ -22,7 +23,7 @@ There is one kind of post. What it looks like follows from what it holds:
 
 - Every post has its own page at `/blog/<slug>`.
 - On the feed, a post with an `excerpt` shows the excerpt. Without one, a short body (up to about 800 characters of Markdown) shows in full, and a longer one is cut short; its title leads to the rest. So a short thought needs no excerpt, and a long piece should have one. See *On the feed* for how the title and size follow from what a post holds.
-- **Data a post shows goes in `data`, as slices** (`cms/slices.py`). A slice says which songs, observations, definitions or links to show; the site looks them up when it builds and draws them under the body (a compact version on the feed card). Kinds: `music_range` / `nature_range` (`{from_date, to_date}`, YYYY-MM-DD, both included), `music_picks` / `nature_picks` / `definition_picks` / `link_picks` (`{refs: [document ids]}`, shown in that order) and `links_by_tag` (`{tags}`, every `link` document carrying any of those tags). The CMS refuses a bad slice on save. A month of music is one `music_range`; "the birds from this trip" is a `nature_picks`; a reading list is a `links_by_tag`.
+- **Data a post shows goes in `data`, as slices** (`cms/slices.py`). A slice says which songs, observations, definitions or links to show; the site looks them up when it builds and draws them under the body (a compact version on the feed card). Kinds: `music_range` / `nature_range` (`{from_date, to_date}`, YYYY-MM-DD, both included), `music_picks` / `nature_picks` / `definition_picks` / `link_picks` (`{refs: [document ids]}`, shown in that order) `links_by_tag` (`{tags}`, every `link` document carrying any of those tags), `taste_picks` (`{refs}`) and `tastes_range` (`{from_date, to_date}` on `tasted_on`, oldest first). The CMS refuses a bad slice on save. A month of music is one `music_range`; "the birds from this trip" is a `nature_picks`; a reading list is a `links_by_tag`.
 - A slice is a pointer, not a copy: a range picks up songs synced after the post was written, and an edit to a definition or link shows in every post that picks it.
 
 `post_type` and `has_detail_page` are gone. The CMS drops them if an old post still carries them the next time it is saved; don't set them.
@@ -31,7 +32,7 @@ There is one kind of post. What it looks like follows from what it holds:
 
 There is one card, in two sizes. What a post holds decides which, so there is no setting for it:
 
-- **A beat** is a post with **no body** whose only slice picks definitions, or picks one link. It is small: a smaller title (the size of a subheading inside a post), less space around it, and no date, tagline or tags. A definition beat shows "Term" (red quote marks, not a link) and the definition under it; a link beat shows the link's title, linking out with ↗, and the link's description. Use one when Joel just wants the thing on the feed with nothing to say about it.
+- **A beat** is a post with **no body** whose only slice picks definitions, picks one link, or picks taste shapes. It is small: a smaller title (the size of a subheading inside a post), less space around it, and no date, tagline or tags. A definition beat shows "Term" (red quote marks, not a link) and the definition under it; a link beat shows the link's title, linking out with ↗, and the link's description; a taste beat about one shape shows the shape, the photo beside it if there is one, the note, and kind · place · date. Use one when Joel just wants the thing on the feed with nothing to say about it.
 - **Everything else is a full post**: date, a full-size title, tagline, body, tags.
 - **Titles are links** (underlined in blue). A post links to its own page, with three exceptions that follow from the slice: a post about **one definition** is titled with the quoted term instead of its `title`; a post whose only slice picks **one link** is titled with that link's title and links out with ↗ (the link list is not drawn, since the title is the link); and a definition beat's title is not a link.
 - **A picked definition** shows as an italic quote with a red rule. In a post that picks several, each starts with its term, linked to its dictionary page. Each ends with a credit line built from the definition's `sources`: a link source is shown by its `title` (edit it to change the label) and links out with ↗, a citation shows its `attribution`. A term Joel coined has no sources, so no credit.
@@ -61,6 +62,15 @@ A definition is dictionary data: the term, what it means, and where that comes f
 4. Both land in the Staging changeset as drafts. Publish when Joel asks: `publish_changeset` on Staging, or the editor's Publish.
 
 One definition can be picked by many posts, so a later post can pick it again (or pick two near-synonyms side by side) without copying it.
+
+## Taste shapes
+
+A `taste_shape` is a shape Joel draws for how something tastes: a wine, a beer, a dish. Fields: `name` (what it is), `shape` (the drawing), `kind` (wine, beer, food, drink, other), `tasted_on`, and optional `photo`, `place`, `note`, `tags`.
+
+- **Drawn in the editor.** New → Taste shapes opens a drawing pad as the Shape field: Fold (draw one side, it closes into a symmetric shape), Mirror or Off; each stroke closes (and fills) or stays open as a line; one fill, one outline colour and one outline width colour the whole shape and can be changed after drawing. It saves as you go, like every plain field, and a new one lands in Staging.
+- **The photo sits beside the shape, never under it**, and is optional: an item can be just a name. It is a media library key (Choose Image, where Upload on a phone takes a photo). Only Joel draws shapes: don't make one up or draw one for him.
+- **No card of its own.** A post shows shapes with `taste_picks` or `tastes_range`; a post with no body and only a `taste_picks` is a taste beat. `/blog/tastes` lists every published shape by month, with a filter by kind; the photo shows on hover.
+- The stored drawing is the shared format (`{viewbox, paths: [{d, stroke, stroke_width, fill}], symmetry}`) that doodles use too; an open stroke has `fill: "none"`.
 
 ## Links
 

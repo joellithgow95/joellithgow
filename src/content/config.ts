@@ -322,6 +322,18 @@ const linkDocSchema = z.object({
   ...dataMeta,
 });
 
+const tasteShapeSchema = z.object({
+  name: z.string(),
+  kind: z.enum(['wine', 'beer', 'food', 'drink', 'other']),
+  tasted_on: z.string(),
+  shape: drawingSchema.nullish(),
+  photo: z.string().nullish(),
+  place: z.string().nullish(),
+  note: z.string().nullish(),
+  tags: z.array(z.string()).nullish(),
+  ...dataMeta,
+});
+
 /** A loader for a data type: entries keyed by CMS document id, not slug. */
 function dataLoader(docType: string) {
   return async () => {
@@ -420,6 +432,7 @@ export const collections = {
   spotify_likes: defineCollection({ loader: dataLoader('spotify_like'), schema: spotifyLikeSchema }),
   inat_observations: defineCollection({ loader: dataLoader('inat_observation'), schema: inatObservationSchema }),
   links: defineCollection({ loader: dataLoader('link'), schema: linkDocSchema }),
+  taste_shapes: defineCollection({ loader: dataLoader('taste_shape'), schema: tasteShapeSchema }),
 };
 
 // ---------------------------------------------------------------------------

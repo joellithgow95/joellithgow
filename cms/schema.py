@@ -8,6 +8,8 @@ from starlette_cms import (
     BoolField,
     DateField,
     DoodleField,
+    DrawingField,
+    ImageField,
     JSONField,
     ListField,
     NumberField,
@@ -67,8 +69,9 @@ def register_documents(cms: CMS) -> None:
             help_text=(
                 "Data this post shows, as a list of slices: songs or observations from a date range "
                 "(music_range, nature_range), hand-picked songs, observations, definitions or links "
-                "(music_picks, nature_picks, definition_picks, link_picks), or every link with a tag "
-                "(links_by_tag). Shown after the body, in this order."
+                "(music_picks, nature_picks, definition_picks, link_picks), every link with a tag "
+                "(links_by_tag), or taste shapes, picked or by date (taste_picks, tastes_range). "
+                "Shown after the body, in this order."
             ),
         )
         doodles: list = DoodleField(label="Doodles")           # decorative SVG overlays, see DoodleOverlay.astro
@@ -158,6 +161,30 @@ def register_documents(cms: CMS) -> None:
         url: str = URLField(required=True)
         description: str = TextField(max_length=2000)
         date_added: str = DateField(required=True)
+        tags: list | None = TagsField()
+
+    @cms.document("taste_shape", label="Taste shapes")
+    class TasteShapeDocument:
+        # A shape Joel draws for how something tastes (a wine, a beer, a dish),
+        # with an optional photo beside it, never under it. No feed card of its
+        # own: a post shows it through a taste_picks or tastes_range slice, and
+        # /blog/tastes lists them all.
+        name: str = TextField(
+            required=True, max_length=300, label="What it is",
+            help_text="The wine, beer or dish, e.g. Ridge Lytton Springs 2021 or McDonald's chicken nuggets.",
+        )
+        shape: dict | None = DrawingField(
+            label="Shape",
+            help_text="One fill and one outline for the whole shape. Strokes can close (filled) or stay open as lines.",
+        )
+        kind: str = SelectField(choices=["wine", "beer", "food", "drink", "other"], required=True)
+        tasted_on: str = DateField(required=True, label="Tasted on")
+        photo: str | None = ImageField(
+            label="Photo",
+            help_text="Optional. Shown beside the shape. Choose one from the media library or upload from your phone.",
+        )
+        place: str = TextField(max_length=300, help_text="Where, if it matters: a restaurant, a winery, home.")
+        note: str = TextField(max_length=2000, help_text="A line or two, optional.")
         tags: list | None = TagsField()
 
     @cms.document("definition")

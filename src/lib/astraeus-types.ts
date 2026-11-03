@@ -96,8 +96,8 @@ export interface BlogPost {
 // ---------------------------------------------------------------------------
 
 export type Slice =
-  | { block_type: 'music_range' | 'nature_range'; from_date: string; to_date: string }
-  | { block_type: 'music_picks' | 'nature_picks' | 'definition_picks' | 'link_picks'; refs: string[] }
+  | { block_type: 'music_range' | 'nature_range' | 'tastes_range'; from_date: string; to_date: string }
+  | { block_type: 'music_picks' | 'nature_picks' | 'definition_picks' | 'link_picks' | 'taste_picks'; refs: string[] }
   | { block_type: 'links_by_tag'; tags: string[] };
 
 export interface HeroMedia {
@@ -226,6 +226,21 @@ export interface INatObservation {
   lat?: number | null;
   lon?: number | null;
   photo_urls?: string[];
+  tags?: string[] | null;
+}
+
+/** A taste shape (cms/schema.py `taste_shape`). */
+export interface TasteShapeDoc {
+  name: string;
+  kind: 'wine' | 'beer' | 'food' | 'drink' | 'other';
+  /** YYYY-MM-DD */
+  tasted_on: string;
+  /** One fill and one outline for the whole drawing; open strokes have no fill */
+  shape?: Drawing | null;
+  /** A media library key or a full URL; shown beside the shape */
+  photo?: string | null;
+  place?: string | null;
+  note?: string | null;
   tags?: string[] | null;
 }
 
