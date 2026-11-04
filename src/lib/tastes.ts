@@ -15,12 +15,16 @@ function cmsBase(): string {
 }
 
 /**
- * An `<img src>` for a taste's photo. The field holds a media library key
- * (what the editor's picker stores) or a full URL. A key becomes an absolute
- * IIIF URL on the CMS, since the site is static and served elsewhere.
+ * An `<img src>` for a taste's photo at `width`. The editor's picker stores an
+ * absolute IIIF URL (`…/media/iiif/<key>/full/1200,/0/default.webp`), whose
+ * size is swapped for `width`; a bare media key becomes the same URL on the
+ * CMS, since the site is static and served elsewhere. Any other URL is used as
+ * it is.
  */
 export function tastePhotoUrl(photo: string | null | undefined, width = 600): string | null {
   if (!photo) return null;
+  const iiif = /^(.*\/media\/iiif\/.+?)\/full\/[^/]+\/0\/default\.webp$/.exec(photo);
+  if (iiif) return `${iiif[1]}/full/${width},/0/default.webp`;
   if (/^https?:\/\//.test(photo)) return photo;
   return `${cmsBase()}/media/iiif/${photo.replace(/^\/+/, '')}/full/${width},/0/default.webp`;
 }

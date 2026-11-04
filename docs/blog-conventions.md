@@ -68,7 +68,7 @@ One definition can be picked by many posts, so a later post can pick it again (o
 A `taste_shape` is a shape Joel draws for how something tastes: a wine, a beer, a dish. Fields: `name` (what it is), `shape` (the drawing), `kind` (wine, beer, food, drink, other), `tasted_on`, and optional `photo`, `place`, `note`, `tags`.
 
 - **Drawn in the editor.** New → Taste shapes opens a drawing pad as the Shape field: Fold (draw one side, it closes into a symmetric shape), Mirror or Off; each stroke closes (and fills) or stays open as a line; one fill, one outline colour and one outline width colour the whole shape and can be changed after drawing. It saves as you go, like every plain field, and a new one lands in Staging.
-- **The photo sits beside the shape, never under it**, and is optional: an item can be just a name. It is a media library key (Choose Image, where Upload on a phone takes a photo). Only Joel draws shapes: don't make one up or draw one for him.
+- **The photo sits beside the shape, never under it**, and is optional: an item can be just a name. Pick it from the media library in the field, or press Upload there (on a phone that can take a photo); it is stored as the library's image URL. Only Joel draws shapes: don't make one up or draw one for him.
 - **No card of its own.** A post shows shapes with `taste_picks` or `tastes_range`; a post with no body and only a `taste_picks` is a taste beat. `/blog/tastes` lists every published shape by month, with a filter by kind; the photo shows on hover.
 - The stored drawing is the shared format (`{viewbox, paths: [{d, stroke, stroke_width, fill}], symmetry}`) that doodles use too; an open stroke has `fill: "none"`.
 
