@@ -26,6 +26,52 @@ export interface BlogImage {
   link?: string;
 }
 
+/** A responsive position value, e.g. `{ value: 20, unit: '%' }`. */
+export interface PlacementAxis {
+  value: number;
+  unit: string;
+}
+
+/**
+ * One breakpoint's placement. Only the axis keys present apply, and
+ * top/left vs right/bottom can differ per breakpoint, as in CSS.
+ */
+export interface PlacementSpec {
+  mode: 'static' | 'absolute';
+  top?: PlacementAxis;
+  left?: PlacementAxis;
+  right?: PlacementAxis;
+  bottom?: PlacementAxis;
+  width?: PlacementAxis;
+}
+
+/** One stroke or filled area of a drawing. */
+export interface DrawingPath {
+  d: string;
+  stroke?: string;
+  stroke_width?: number;
+  fill?: string;
+  opacity?: number;
+}
+
+/** A hand-drawn shape (astraeus starlette_cms.drawing.Drawing). */
+export interface Drawing {
+  viewbox: string;
+  paths: DrawingPath[];
+  symmetry?: 'vertical' | 'horizontal';
+}
+
+/** A drawing placed on a page (astraeus starlette_cms.drawing.Doodle). */
+export interface Doodle {
+  id: string;
+  drawing: Drawing;
+  z_index?: number;
+  placement: {
+    base: PlacementSpec;
+    overrides?: Record<string, PlacementSpec>;
+  };
+}
+
 export interface BlogPost {
   slug: string;
   title: string;
@@ -39,6 +85,7 @@ export interface BlogPost {
   tags?: string[] | null;
   /** Slices of the data documents this post shows (cms/slices.py) */
   data?: Slice[] | null;
+  doodles?: Doodle[] | null;
   featured?: boolean;
   reading_time?: number | null;
 }
@@ -49,8 +96,8 @@ export interface BlogPost {
 // ---------------------------------------------------------------------------
 
 export type Slice =
-  | { block_type: 'music_range' | 'nature_range'; from_date: string; to_date: string }
-  | { block_type: 'music_picks' | 'nature_picks' | 'definition_picks' | 'link_picks'; refs: string[] }
+  | { block_type: 'music_range' | 'nature_range' | 'tastes_range'; from_date: string; to_date: string }
+  | { block_type: 'music_picks' | 'nature_picks' | 'definition_picks' | 'link_picks' | 'taste_picks'; refs: string[] }
   | { block_type: 'links_by_tag'; tags: string[] };
 
 export interface HeroMedia {
@@ -179,6 +226,21 @@ export interface INatObservation {
   lat?: number | null;
   lon?: number | null;
   photo_urls?: string[];
+  tags?: string[] | null;
+}
+
+/** A taste shape (cms/schema.py `taste_shape`). */
+export interface TasteShapeDoc {
+  name: string;
+  kind: 'wine' | 'beer' | 'food' | 'drink' | 'other';
+  /** YYYY-MM-DD */
+  tasted_on: string;
+  /** One fill and one outline for the whole drawing; open strokes have no fill */
+  shape?: Drawing | null;
+  /** A media library key or a full URL; shown beside the shape */
+  photo?: string | null;
+  place?: string | null;
+  note?: string | null;
   tags?: string[] | null;
 }
 

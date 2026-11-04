@@ -12,6 +12,7 @@ import Card from '@components/primitives/Card.astro';
 import Badge from '@components/primitives/Badge.astro';
 import Button from '@components/primitives/Button.astro';
 import PostSlices from '@components/blog/slices/PostSlices.astro';
+import DoodleOverlay from '@components/common/DoodleOverlay.astro';
 import { resolveSlices } from '@lib/slices';
 import '../../styles/log.css';
 
@@ -46,6 +47,7 @@ const tags = post.tags || [];
 const author = ('author' in post && (post as any).author) as string | undefined;
 const reading_time = ('reading_time' in post && (post as any).reading_time) as number | undefined;
 const image = ('image' in post && (post as any).image) as AstraeusDocument<BlogPost>['image'] | undefined;
+const doodles = ('doodles' in post && (post as any).doodles) as AstraeusDocument<BlogPost>['doodles'] | undefined;
 const publishDate = new Date(publish_date);
 // The data this post shows (ADR 026 slices), resolved at build time
 const slices = kind === 'post' ? await resolveSlices((post as any).data) : [];
@@ -134,6 +136,7 @@ const breadcrumbSchema = {
 
         {/* REGULAR ARTICLE LAYOUT */}
           <article class="blog-article">
+            <DoodleOverlay doodles={doodles} />
             {/* Hero-style header with featured image/video */}
             {image && (
               <div class="article-hero" data-cms-field="image">

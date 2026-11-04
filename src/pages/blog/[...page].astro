@@ -15,6 +15,7 @@ import Video from '@components/ui/Video.astro';
 import ImageGallery from '@components/modals/ImageGallery.astro';
 import AlbumMosaic from '@components/blog/AlbumMosaic.astro';
 import PostSlices from '@components/blog/slices/PostSlices.astro';
+import DoodleOverlay from '@components/common/DoodleOverlay.astro';
 import { loadDataPool, resolveSlices, type Entry } from '@lib/slices';
 
 export const getStaticPaths = (async () => {
@@ -121,6 +122,10 @@ const onlyDefinitions = (slug: string) => {
   const s = slicesBySlug.get(slug) ?? [];
   return s.length === 1 && s[0].kind === 'definitions' ? s[0].definitions : null;
 };
+const onlyTastes = (slug: string) => {
+  const s = slicesBySlug.get(slug) ?? [];
+  return s.length === 1 && s[0].kind === 'tastes' ? s[0].tastes : null;
+};
 const onlyLink = (slug: string) => {
   const s = slicesBySlug.get(slug) ?? [];
   return s.length === 1 && s[0].kind === 'links' && !s[0].tags && s[0].links.length === 1 ? s[0].links[0] : null;
@@ -154,12 +159,14 @@ const spotifyCount = allPosts.filter(post => hasSlice(post, ['music_range', 'mus
 const natureCount = allPosts.filter(post => hasSlice(post, ['nature_range', 'nature_picks'])).length;
 // Definitions have no feed cards of their own; count the dictionary instead
 const definitionCount = (await fetchDefinitions()).length;
+const tasteCount = (await loadDataPool()).tastes.length;
 
 // Sidebar: browse the log by document type (colored brutalist nav cards)
 const typeNav = [
   { href: '/blog/links', label: 'Links', count: totalLinks, tone: 'secondary' },
   { href: '/blog/music', label: 'Music', count: spotifyCount, tone: 'tertiary' },
   { href: '/blog/nature', label: 'Birds', count: natureCount, tone: 'primary' },
+  ...(tasteCount > 0 ? [{ href: '/blog/tastes', label: 'Tastes', count: tasteCount, tone: 'primary' }] : []),
   { href: '/blog/dictionary', label: 'Dictionary', count: definitionCount, tone: 'secondary' },
 ];
 
@@ -225,7 +232,8 @@ const jsonLd = {
                 const postHref = `/blog/${post.slug}`;
                 const pickedDefs = onlyDefinitions(post.slug);
                 const pickedLink = onlyLink(post.slug);
-                const isBeat = !!(pickedDefs || pickedLink) && !body.trim();
+                const pickedTastes = onlyTastes(post.slug);
+                const isBeat = !!(pickedDefs || pickedLink || pickedTastes) && !body.trim();
                 // A card cut short has no other way to the rest, so its title leads to the post page
                 const isCut = !isBeat && !pickedLink && !excerpt && !showsFullBody;
                 const defTitle = pickedDefs && (pickedDefs.length === 1 || isBeat) ? pickedDefs : null;
@@ -241,6 +249,7 @@ const jsonLd = {
                   data-cms-id={isEditorial ? (post as any)._id : undefined}
                   data-cms-type={isEditorial ? 'blog_post' : undefined}
                 >
+                  <DoodleOverlay doodles={isEditorial ? (post as any).doodles : undefined} />
                   <div class="record-body">
                     {!isBeat && <time class="record-date" datetime={new Date(post.publish_date).toISOString()}>
                       {new Date(post.publish_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
@@ -344,7 +353,7 @@ const jsonLd = {
                       <blockquote class="post-quote" set:html={quoteHtml(x, 'linked')} />
                     ))}
 
-                    {!pickedLink && !pickedDefs && <PostSlices slices={slicesBySlug.get(post.slug) ?? []} compact />}
+                    {!pickedLink && !pickedDefs && <PostSlices slices={slicesBySlug.get(post.slug) ?? []} compact beat={isBeat} />}
 
                     {!isBeat && post.tags && post.tags.length > 0 && (
                       <div class="post-tags">
@@ -1189,6 +1198,7 @@ const jsonLd = {
   .log-feed { display: block; }
 
   .log-record {
+    position: relative;
     padding: var(--space-lg) 0;
     border-top: 1px solid var(--gradient-primary-subtle);
   }

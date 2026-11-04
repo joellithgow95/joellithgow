@@ -30,7 +30,7 @@ from starlette_chat.providers.openai import OpenAICompatibleProvider
 from astraeus_portal import Portal, PortalApp
 from cms.media import MOUNT_PATH as MEDIA_MOUNT_PATH, build_media
 from cms.oauth import OAuthSettings, build_oauth_routes
-from cms.schema import register_documents
+from cms.schema import register_blocks, register_documents
 from cms.site_deploy import SiteDeployConfig, deploy_hook, rebuild
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./cms/data/content.db")
@@ -91,6 +91,7 @@ cms = CMS(
 )
 
 register_documents(cms)
+register_blocks(cms)
 register_editorial_blocks(cms)  # system_prompt + model_config only — chat_session/chat_message go to chat.db
 
 

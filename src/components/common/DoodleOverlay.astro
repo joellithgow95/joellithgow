@@ -1,0 +1,107 @@
+---
+import type { Doodle, PlacementSpec } from '@lib/astraeus-types';
+import DrawingSvg from './DrawingSvg.astro';
+
+export interface Props {
+  doodles?: Doodle[] | null;
+  /** The document field this overlay renders/edits — 'doodles' for a post,
+   * or a site_doodles singleton slot name ('homepage', 'about', 'blog_index')
+   * for a page-level mount. Self-applied as the data-cms-field marker so
+   * there's always exactly one element carrying it — never a separate
+   * wrapper div duplicating it, which would activate the field twice. */
+  fieldName?: string;
+}
+
+const { doodles = [], fieldName = 'doodles' } = Astro.props as Props;
+// Defensive, not just `doodles ?? []`: callers extract this field via the
+// `'doodles' in post && (post as any).doodles` idiom used throughout this
+// codebase, which evaluates to `false` (not undefined) when the key is
+// absent — `??` doesn't catch that, but Array.isArray does.
+const list = Array.isArray(doodles) ? doodles : [];
+
+// Named tiers match tokens.css's own @custom-media (--tablet, --desktop) and
+// the dominant max-width usage across the site — not an invented scale.
+const BREAKPOINTS: Record<string, string> = {
+  mobile: '(max-width: 480px)',
+  tablet: '(max-width: 768px)',
+  desktop: '(min-width: 1024px)',
+};
+
+function declBlock(p: PlacementSpec): string {
+  if (p.mode === 'static') return 'position: static;';
+  const parts = ['position: absolute;'];
+  for (const axis of ['top', 'left', 'right', 'bottom', 'width'] as const) {
+    const v = p[axis];
+    if (v) parts.push(`${axis}: ${v.value}${v.unit};`);
+  }
+  return parts.join(' ');
+}
+
+const overrideCss = list
+  .flatMap((d) =>
+    Object.entries(d.placement.overrides ?? {}).map(([tier, spec]) => {
+      const mq = BREAKPOINTS[tier];
+      if (!mq) return '';
+      return `@media ${mq} { .doodle-overlay__item[data-doodle-id="${d.id}"] { ${declBlock(spec)} } }`;
+    }),
+  )
+  .join('\n');
+---
+
+{/* Purely decorative — never carries data-cms-field, so edit-mode.js never
+   touches it. It spans the whole card (inset: 0) specifically so a doodle
+   can be positioned anywhere within it; carrying the click target here too
+   would mean activating the field re-enables pointer-events on this entire
+   full-card element, sitting on top of and blocking every other field
+   underneath it (title, image, body). */}
+<div class="doodle-overlay" aria-hidden="true">
+  {list.map((d) => (
+    <DrawingSvg
+      class="doodle-overlay__item"
+      data-doodle-id={d.id}
+      drawing={d.drawing}
+      style={`${declBlock(d.placement.base)} z-index: ${d.z_index ?? 1};`}
+    />
+  ))}
+</div>
+
+{/* The actual click target — small and fixed-size on purpose. Always
+   rendered, even with zero doodles, since this is what you click to draw
+   the first one. Invisible to anonymous visitors (no icon, no border);
+   edit-mode.js's dashed-outline affordance is what reveals it, same as
+   every other field in this codebase (a title or body field looks like
+   plain content until edit mode outlines it too). */}
+<div
+  class="doodle-edit-handle"
+  data-cms-field={fieldName}
+  data-cms-field-type="doodles"
+  aria-hidden="true"
+></div>
+
+{overrideCss && <style set:html={overrideCss} />}
+
+<style>
+  .doodle-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    /* Above decorative backgrounds (z-index: -1), below real content. */
+    z-index: 1;
+  }
+  .doodle-overlay :global(.doodle-overlay__item) {
+    position: absolute;
+    overflow: visible;
+  }
+  .doodle-edit-handle {
+    position: absolute;
+    /* Near the top, not the bottom — .blog-article's height is its full
+       content length, so "bottom" here can be scrolled well off-screen on
+       a long post. */
+    top: 8px;
+    left: 8px;
+    width: 44px;
+    height: 44px;
+    pointer-events: none;
+    z-index: 2;
+  }
+</style>

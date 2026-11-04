@@ -43,6 +43,46 @@ const bodyBlockSchema = z.object({
 // Blog post schema
 // ---------------------------------------------------------------------------
 
+// Mirrors astraeus starlette_cms.drawing: a drawing is a viewBox and its SVG
+// paths (one per stroke, each with its own stroke and fill); a doodle is a
+// drawing plus a per-breakpoint placement spec. Each axis key
+// is independent, so top/left and right/bottom can differ per breakpoint.
+const placementAxisSchema = z.object({
+  value: z.number(),
+  unit: z.string(),
+});
+
+const placementSpecSchema = z.object({
+  mode: z.enum(['static', 'absolute']),
+  top: placementAxisSchema.optional(),
+  left: placementAxisSchema.optional(),
+  right: placementAxisSchema.optional(),
+  bottom: placementAxisSchema.optional(),
+  width: placementAxisSchema.optional(),
+});
+
+const drawingSchema = z.object({
+  viewbox: z.string(),
+  paths: z.array(z.object({
+    d: z.string(),
+    stroke: z.string().optional(),
+    stroke_width: z.number().optional(),
+    fill: z.string().optional(),
+    opacity: z.number().optional(),
+  })),
+  symmetry: z.enum(['vertical', 'horizontal']).optional(),
+});
+
+const doodleSchema = z.object({
+  id: z.string(),
+  drawing: drawingSchema,
+  z_index: z.number().optional(),
+  placement: z.object({
+    base: placementSpecSchema,
+    overrides: z.record(z.string(), placementSpecSchema).optional(),
+  }),
+});
+
 const blogPostSchema = z.object({
   slug: z.string(),  // convenience alias for entry.id, injected by loader from CMS system field
   title: z.string(),
@@ -58,6 +98,8 @@ const blogPostSchema = z.object({
    *  discriminator is checked here: an unexpected shape is skipped by
    *  src/lib/slices.ts rather than failing the build. */
   data: z.array(z.object({ block_type: z.string() }).passthrough()).nullable().optional(),
+  /** Decorative SVG doodles drawn on the page (DoodleOverlay.astro) */
+  doodles: z.array(doodleSchema).nullable().optional(),
   featured: z.boolean().optional(),
   /** null = reading time explicitly unset; absent = not calculated */
   reading_time: z.number().nullable().optional(),
@@ -280,6 +322,18 @@ const linkDocSchema = z.object({
   ...dataMeta,
 });
 
+const tasteShapeSchema = z.object({
+  name: z.string(),
+  kind: z.enum(['wine', 'beer', 'food', 'drink', 'other']),
+  tasted_on: z.string(),
+  shape: drawingSchema.nullish(),
+  photo: z.string().nullish(),
+  place: z.string().nullish(),
+  note: z.string().nullish(),
+  tags: z.array(z.string()).nullish(),
+  ...dataMeta,
+});
+
 /** A loader for a data type: entries keyed by CMS document id, not slug. */
 function dataLoader(docType: string) {
   return async () => {
@@ -378,6 +432,7 @@ export const collections = {
   spotify_likes: defineCollection({ loader: dataLoader('spotify_like'), schema: spotifyLikeSchema }),
   inat_observations: defineCollection({ loader: dataLoader('inat_observation'), schema: inatObservationSchema }),
   links: defineCollection({ loader: dataLoader('link'), schema: linkDocSchema }),
+  taste_shapes: defineCollection({ loader: dataLoader('taste_shape'), schema: tasteShapeSchema }),
 };
 
 // ---------------------------------------------------------------------------
@@ -388,6 +443,8 @@ export type Application = z.infer<typeof applicationSchema>;
 export type InterviewRound = z.infer<typeof interviewRoundSchema>;
 export type StatusEvent = z.infer<typeof statusEventSchema>;
 export type BlogPost = z.infer<typeof blogPostSchema>;
+export type Doodle = z.infer<typeof doodleSchema>;
+export type Drawing = z.infer<typeof drawingSchema>;
 export type ProjectPage = z.infer<typeof projectPageSchema>;
 export type ExperienceEntry = z.infer<typeof experienceEntrySchema>;
 export type Definition = z.infer<typeof definitionSchema>;
