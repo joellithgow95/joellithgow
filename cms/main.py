@@ -201,8 +201,10 @@ portal = Portal(
             [
                 PortalApp(
                     name="Media",
-                    path=f"{MEDIA_MOUNT_PATH}/admin",
-                    description="Upload images and find their URLs for posts",
+                    # The library inside the editor shell. The standalone
+                    # pages at /media/admin still work.
+                    path="/editor/#media",
+                    description="Upload images, write their alt text and find their URLs for posts",
                     icon="🖼️",
                 )
             ]
