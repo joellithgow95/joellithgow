@@ -174,20 +174,31 @@ export function play(hand: ClickHand, voice = currentVoice()): void {
 /**
  * Listens for clicks sitewide. A mouse plays on press (left button: bright,
  * right button: low) and never blocks the context menu. Touch and pen play on
- * `click`, so a scroll or a long press makes no sound, and choose the voice
- * by which half of the screen was tapped.
+ * a tap, and choose the voice by which half of the screen was tapped.
+ *
+ * A tap is read from `pointerup`, not `click`: iOS Safari only fires `click`
+ * on elements it thinks are clickable, so a tap on plain text or empty page
+ * never reaches a document listener. A press that moved (a scroll) or was
+ * held (a long press) stays silent. A non-mouse `pointerup` also counts as a
+ * user gesture, so it may start the AudioContext.
  */
+const TAP_SLOP_PX = 10;
+const TAP_MAX_MS = 500;
+
 export function initClickMusic(): void {
   if ((window as any).__clickMusicInit) return;
   (window as any).__clickMusicInit = true;
 
-  let lastPointerType = 'mouse';
+  const downs = new Map<number, { x: number; y: number; t: number }>();
 
   document.addEventListener(
     'pointerdown',
     (e) => {
-      lastPointerType = e.pointerType;
-      if (e.pointerType !== 'mouse' || !enabled()) return;
+      if (e.pointerType !== 'mouse') {
+        downs.set(e.pointerId, { x: e.clientX, y: e.clientY, t: e.timeStamp });
+        return;
+      }
+      if (!enabled()) return;
       if (e.button === 0) play('left');
       else if (e.button === 2) play('right');
     },
@@ -195,13 +206,22 @@ export function initClickMusic(): void {
   );
 
   document.addEventListener(
-    'click',
+    'pointerup',
     (e) => {
-      if (lastPointerType === 'mouse' || !enabled()) return;
-      // A keyboard-activated click has no position; leave it silent.
-      if (e.detail === 0) return;
+      if (e.pointerType === 'mouse') return;
+      const down = downs.get(e.pointerId);
+      downs.delete(e.pointerId);
+      if (!down || !enabled()) return;
+      const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
+      if (moved > TAP_SLOP_PX || e.timeStamp - down.t > TAP_MAX_MS) return;
       play(e.clientX < window.innerWidth / 2 ? 'left' : 'right');
     },
     { capture: true, passive: true },
   );
+
+  // A scroll takes the pointer over, so its pointerup never comes.
+  document.addEventListener('pointercancel', (e) => downs.delete(e.pointerId), {
+    capture: true,
+    passive: true,
+  });
 }
