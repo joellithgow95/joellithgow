@@ -51,6 +51,52 @@ wheels = [
 ]
 
 [[package]]
+name = "astraeus-media"
+version = "0.2.0"
+source = { editable = "../astraeus/packages/astraeus-media" }
+dependencies = [
+    { name = "aiosqlite" },
+    { name = "anyio" },
+    { name = "click" },
+    { name = "obstore" },
+    { name = "opentelemetry-api" },
+    { name = "pillow" },
+    { name = "pydantic" },
+    { name = "starlette" },
+    { name = "structlog" },
+]
+
+[package.optional-dependencies]
+admin = [
+    { name = "jinja2" },
+    { name = "python-multipart" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aiosqlite", specifier = ">=0.20" },
+    { name = "anyio" },
+    { name = "astraeus-media", extras = ["full"], marker = "extra == 'dev'" },
+    { name = "astraeus-media", extras = ["mcp", "admin", "fastapi", "cli"], marker = "extra == 'full'" },
+    { name = "click", specifier = ">=8.0" },
+    { name = "click", marker = "extra == 'cli'", specifier = ">=8.0" },
+    { name = "fastapi", marker = "extra == 'fastapi'", specifier = ">=0.115" },
+    { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27" },
+    { name = "httpx", marker = "extra == 'mcp'", specifier = ">=0.27" },
+    { name = "jinja2", marker = "extra == 'admin'", specifier = ">=3.1" },
+    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.0,<2" },
+    { name = "obstore", specifier = ">=0.10" },
+    { name = "opentelemetry-api", specifier = ">=1.25" },
+    { name = "pillow", specifier = ">=11.0" },
+    { name = "pydantic", specifier = ">=2.0" },
+    { name = "python-multipart", marker = "extra == 'admin'", specifier = ">=0.0.9" },
+    { name = "starlette", specifier = ">=1.0" },
+    { name = "structlog", specifier = ">=24.0" },
+    { name = "uvicorn", marker = "extra == 'cli'", specifier = ">=0.30" },
+]
+provides-extras = ["mcp", "admin", "fastapi", "cli", "full", "dev"]
+
+[[package]]
 name = "astraeus-otel"
 version = "0.1.0"
 source = { editable = "../astraeus/packages/astraeus-otel" }
@@ -698,11 +744,11 @@ name = "joellithgow-cms"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "astraeus-media", extra = ["admin"] },
     { name = "astraeus-otel" },
     { name = "astraeus-portal" },
     { name = "httpx" },
     { name = "markdown" },
-    { name = "mediakit", extra = ["admin"] },
     { name = "piccolo", extra = ["sqlite"] },
     { name = "python-frontmatter" },
     { name = "pyyaml" },
@@ -717,11 +763,11 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "astraeus-media", extras = ["admin"], editable = "../astraeus/packages/astraeus-media" },
     { name = "astraeus-otel", editable = "../astraeus/packages/astraeus-otel" },
     { name = "astraeus-portal", editable = "../astraeus/packages/astraeus-portal" },
     { name = "httpx", specifier = ">=0.27.0" },
     { name = "markdown", specifier = ">=3.7" },
-    { name = "mediakit", extras = ["admin"], editable = "../astraeus/packages/mediakit" },
     { name = "piccolo", extras = ["sqlite"], specifier = ">=1.0.0" },
     { name = "python-frontmatter", specifier = ">=1.1.0" },
     { name = "pyyaml", specifier = ">=6.0" },
@@ -1118,52 +1164,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/c1/ee/94c6c50ffc5b5cf47
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2e/e1/4c1dc1fbb688641a712d34650c3d58bbbdcb314ddb75bc5817bbf33515a4/mcp-1.28.0-py3-none-any.whl", hash = "sha256:9c1e7cf3a9125557e418ecd4fed8e9adddce81b0dfdae4d6601d700f5beb71a4", size = 221959, upload-time = "2026-06-16T21:37:16.579Z" },
 ]
-
-[[package]]
-name = "mediakit"
-version = "0.2.0"
-source = { editable = "../astraeus/packages/mediakit" }
-dependencies = [
-    { name = "aiosqlite" },
-    { name = "anyio" },
-    { name = "click" },
-    { name = "obstore" },
-    { name = "opentelemetry-api" },
-    { name = "pillow" },
-    { name = "pydantic" },
-    { name = "starlette" },
-    { name = "structlog" },
-]
-
-[package.optional-dependencies]
-admin = [
-    { name = "jinja2" },
-    { name = "python-multipart" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "aiosqlite", specifier = ">=0.20" },
-    { name = "anyio" },
-    { name = "click", specifier = ">=8.0" },
-    { name = "click", marker = "extra == 'cli'", specifier = ">=8.0" },
-    { name = "fastapi", marker = "extra == 'fastapi'", specifier = ">=0.115" },
-    { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27" },
-    { name = "httpx", marker = "extra == 'mcp'", specifier = ">=0.27" },
-    { name = "jinja2", marker = "extra == 'admin'", specifier = ">=3.1" },
-    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.0,<2" },
-    { name = "mediakit", extras = ["full"], marker = "extra == 'dev'" },
-    { name = "mediakit", extras = ["mcp", "admin", "fastapi", "cli"], marker = "extra == 'full'" },
-    { name = "obstore", specifier = ">=0.10" },
-    { name = "opentelemetry-api", specifier = ">=1.25" },
-    { name = "pillow", specifier = ">=11.0" },
-    { name = "pydantic", specifier = ">=2.0" },
-    { name = "python-multipart", marker = "extra == 'admin'", specifier = ">=0.0.9" },
-    { name = "starlette", specifier = ">=1.0" },
-    { name = "structlog", specifier = ">=24.0" },
-    { name = "uvicorn", marker = "extra == 'cli'", specifier = ">=0.30" },
-]
-provides-extras = ["mcp", "admin", "fastapi", "cli", "full", "dev"]
 
 [[package]]
 name = "mistune"
@@ -2243,6 +2243,7 @@ dependencies = [
 
 [package.optional-dependencies]
 collab-verify = [
+    { name = "mistune" },
     { name = "prosemirror" },
 ]
 mcp = [
@@ -2257,6 +2258,7 @@ requires-dist = [
     { name = "click", specifier = ">=8.0" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.0,<2" },
+    { name = "mistune", marker = "extra == 'collab-verify'", specifier = ">=3.0" },
     { name = "nanoid", specifier = ">=2.0" },
     { name = "opentelemetry-api", specifier = ">=1.25" },
     { name = "piccolo", specifier = ">=1.0" },

@@ -50,14 +50,28 @@ def register_documents(cms: CMS) -> None:
         excerpt: str = TextField(max_length=2000)
         author: str = TextField(max_length=200)
         image: dict | None = JSONField(                       # { src, alt, type, fallbackSrc?, poster? }
+            # A hint, not enforced: with src and alt in it the editor draws an
+            # image picker on the media library instead of a JSON box.
+            schema={
+                "type": "object",
+                "properties": {
+                    "src": {"type": "string"},
+                    "alt": {"type": "string"},
+                    "type": {"type": "string", "enum": ["image", "video"]},
+                    "fallbackSrc": {"type": "string"},
+                    "poster": {"type": "string"},
+                    "link": {"type": "string"},
+                },
+                "required": ["src", "alt"],
+            },
             help_text=(
                 "The card and header image, as an object: {\"src\": ..., \"alt\": ...}. Both are "
                 "required and both are strings. Optional: type (\"image\" or \"video\"), fallbackSrc, "
                 "poster, link. For an image uploaded to the media library, src is the absolute URL "
                 "https://cms.joellithgow.com/media/iiif/<asset key>/full/1200,/0/default.webp (width "
                 "after full/ is yours to pick), because the site is static and a relative src would "
-                "resolve against Netlify. Find the asset key in the media library at /media/admin, "
-                "or with the media MCP's list_assets."
+                "resolve against Netlify. In the editor, Choose image picks one from the media library "
+                "and fills both; elsewhere, find the asset key with the media MCP's list_assets."
             ),
         )
         tags: list | None = TagsField()
