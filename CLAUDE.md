@@ -33,6 +33,10 @@ bun run build         # production Astro build
 bun run preview       # preview the build locally
 ```
 
+## Admin home
+
+`https://cms.joellithgow.com/` is the portal (astraeus-portal): sign in, then a card each for the Editor (`/editor/`), Media (`/media/admin`), Gateways (`/gateways/`) and Feedback (`/feedback/`). Every one of those pages carries the portal's app bar across the top, a home link and a link to each app, because `cms/main.py` gives each `portal_url="/"`. The portal is spliced in at the root (`*portal.routes`: `/`, `/apps.json`, `/app-bar.js`) ahead of the CMS, which is mounted at `/` too, so `/api/...` is untouched. Old paths still work: `/admin` redirects home, `/editor/shell` still serves the editor, and bare `/editor`, `/gateways`, `/feedback` and `/media` redirect to their pages. Add an app by adding a `PortalApp` there; the bar picks it up from `apps.json`.
+
 ## Architecture
 
 ```
@@ -137,12 +141,12 @@ jlithgow-ops (see *Where prod runs*). The `mcp-deploy` / `caddy-deploy` targets 
 
 ## Media library (images on posts)
 
-`cms/media.py` mounts mediakit at `/media`, backed by the private R2 bucket `jlithgow-media`. It is only built when `MEDIA_BUCKET` is set, so local dev and staging run without it. Mediakit serves every image itself: `/media/iiif/<key>/<region>/<size>/0/default.webp` makes a derivative on first request and answers 302 to a presigned R2 URL (1 h). The bucket has no public access and its keys never leave the pod.
+`cms/media.py` mounts astraeus-media at `/media`, backed by the private R2 bucket `jlithgow-media`. It is only built when `MEDIA_BUCKET` is set, so local dev and staging run without it. astraeus-media serves every image itself: `/media/iiif/<key>/<region>/<size>/0/default.webp` makes a derivative on first request and answers 302 to a presigned R2 URL (1 h). The bucket has no public access and its keys never leave the pod.
 
 - **Env:** `MEDIA_BUCKET`, `MEDIA_ENDPOINT_URL` and `MEDIA_CATALOG_PATH` (default `./cms/data/media.db`, so it sits on the pod's volume) are plain env in the Deployment. `MEDIA_ACCESS_KEY_ID` / `MEDIA_SECRET_ACCESS_KEY` come from the `media` secret (jlithgow-ops `media-secrets.enc.yaml`, an R2 token scoped to `jlithgow-media` only, never the backups bucket's). Optional `MEDIA_API_KEY` for Bearer access. Rotating the token means re-encrypting that file and restarting `astraeus-cms`.
 - **Renditions are public, originals are not.** `MEDIA_DERIVATIVES_BUCKET` (`jlithgow-media-public`) and `MEDIA_DERIVATIVES_PUBLIC_URL` (`https://media.joellithgow.com`) send IIIF renditions to a separate bucket on a Cloudflare custom domain (jlithgow-ops `r2.tf`), where the edge caches them (`Cache-Control` is set on write, 30 days). `/media/iiif/...` stays the stable URL in posts and 302s there. The R2 token must cover both buckets. Deleting an asset deletes its renditions; a CDN may still hold a cached copy until its TTL.
 - **Auth:** reads (`GET /media/assets`, the IIIF routes) are public, because the static site's `<img>` tags carry no credentials. The admin pages (`/media/admin`, picker at `?picker=1`) and every write need the CMS login cookie or `Authorization: Bearer $MEDIA_API_KEY`. `/media/assets/<key>` hands a presigned URL for the *original* to anyone who knows a key.
-- **Media MCP.** `cms/media_mcp_server.py` wraps mediakit's MCP server (list, search, get, upload from a public https URL, update, delete, IIIF URL) and runs as the `cms-media-mcp` sidecar on port 8004, reached at `/mcp/media` through mcp-proxy. It calls `/media` over HTTP with `MEDIA_API_KEY` as the Bearer key and hands back URLs under `MEDIA_PUBLIC_URL`, so the CMS pod and the sidecar read the same key from the `media` secret.
+- **Media MCP.** `cms/media_mcp_server.py` wraps astraeus-media's MCP server (list, search, get, upload from a public https URL, update, delete, IIIF URL) and runs as the `cms-media-mcp` sidecar on port 8004, reached at `/mcp/media` through mcp-proxy. It calls `/media` over HTTP with `MEDIA_API_KEY` as the Bearer key and hands back URLs under `MEDIA_PUBLIC_URL`, so the CMS pod and the sidecar read the same key from the `media` secret.
 - **The catalog is state.** `media.db` holds alt text, tags and references; the bucket holds only the files. It needs Litestream (jlithgow-ops), or a pod move loses it.
 - **Putting an image on a post.** The blog `image` field is a `JSONField` `{src, alt}`, not an `ImageField`, so the editor has no picker for it. Upload at `/media/admin/upload` (works from a phone), then set `image.src` to the **absolute** URL `https://cms.joellithgow.com/media/iiif/<asset key>/full/1200,/0/default.webp` and `image.alt`. Absolute because the site is static on Netlify: a relative `src` resolves against Netlify and 404s. `get_block_schema("blog_post")` documents the shape.
 - **Browser uploads PUT straight to R2**, so the bucket needs a CORS rule allowing `PUT` from `https://cms.joellithgow.com` (Terraform, jlithgow-ops).

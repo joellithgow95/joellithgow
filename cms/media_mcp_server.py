@@ -1,9 +1,9 @@
 """
-MCP server entrypoint for the media library (mediakit mounted at /media).
+MCP server entrypoint for the media library (astraeus-media mounted at /media).
 
-Wraps mediakit's MCP server (list, search, get, upload, update, delete, IIIF URLs —
+Wraps astraeus-media's MCP server (list, search, get, upload, update, delete, IIIF URLs —
 thin HTTP wrappers around the /media API) and serves it over a chosen transport.
-Uploads go through upload_asset, which fetches a public https URL (SSRF-guarded in mediakit).
+Uploads go through upload_asset, which fetches a public https URL (SSRF-guarded in astraeus-media).
 
   - stdio (default) — local Claude Code / testing:
         MEDIA_API_KEY=... uv run python -m cms.media_mcp_server
@@ -20,7 +20,7 @@ use works out of the box. MEDIA_API_KEY is the same key the CMS accepts as
 import argparse
 import os
 
-from mediakit.mcp.server import build_mcp_server
+from astraeus_media.mcp.server import build_mcp_server
 
 PUBLIC_URL = "https://cms.joellithgow.com/media"
 

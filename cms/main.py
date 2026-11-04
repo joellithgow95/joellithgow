@@ -150,11 +150,16 @@ rebuild_actions = (
     else []
 )
 
+# The portal is the home page: cms.joellithgow.com/ lists every admin app, and
+# each app's page carries the portal's app bar (a home link and a link to each
+# app) because it is given this URL.
+PORTAL_URL = "/"
+
 # Gate the admin shells behind session auth. Without a guard the /shell pages
 # embed the CMS api_key in their HTML and are served to anyone — the guard
 # requires a valid cms_session cookie (login at /api/auth/login) instead.
 # Media library (cms/media.py). None unless MEDIA_BUCKET is set.
-media = build_media(cms)
+media = build_media(cms, portal_url=PORTAL_URL)
 
 editor = Editor(
     cms=cms,
@@ -163,8 +168,13 @@ editor = Editor(
     # Enables the image picker on ImageFields. The blog `image` is a JSONField, so
     # it gets no picker: paste a media URL into it (see schema.py).
     media_base=MEDIA_MOUNT_PATH if media else None,
+    portal_url=PORTAL_URL,
 )
-gateway_admin = GatewayAdmin(cms=cms, auth=lambda request: check_session_auth(request, cms))
+gateway_admin = GatewayAdmin(
+    cms=cms,
+    auth=lambda request: check_session_auth(request, cms),
+    portal_url=PORTAL_URL,
+)
 
 # Feedback and bug reports for Astraeus. Reports live in their own SQLite file
 # beside content.db (so the volume and Litestream cover it) and are only served
@@ -174,6 +184,7 @@ feedback_admin = FeedbackAdmin(
     cms=cms,
     db_path=FEEDBACK_DB_PATH,
     auth=lambda request: check_session_auth(request, cms),
+    portal_url=PORTAL_URL,
 )
 
 # LM Studio (local) or OpenAI — set OPENAI_API_KEY + OPENAI_BASE_URL to override.
@@ -182,33 +193,41 @@ portal = Portal(
     apps=[
         PortalApp(
             name="Editor",
-            path="/editor/shell",
-            description="Create and edit content documents with the ProseMirror visual editor",
+            path="/editor/",
+            description="Write and publish posts, and everything else on the site",
             icon="✏️",
+        ),
+        *(
+            [
+                PortalApp(
+                    name="Media",
+                    path=f"{MEDIA_MOUNT_PATH}/admin",
+                    description="Upload images and find their URLs for posts",
+                    icon="🖼️",
+                )
+            ]
+            if media
+            else []
         ),
         PortalApp(
             name="Gateways",
-            path="/gateways/shell",
-            description="Sync data from external services into the CMS",
+            path="/gateways/",
+            description="Sync Spotify likes and iNaturalist sightings into the CMS",
             icon="🔄",
         ),
         PortalApp(
             name="Feedback",
-            path="/feedback/shell",
+            path="/feedback/",
             description="File and triage feedback and bug reports for Astraeus",
             icon="🐛",
-        ),
-        PortalApp(
-            name="Chat",
-            path="/chat/shell",
-            description="AI-powered editing assistant with live collab",
-            icon="💬",
         ),
     ],
     title="Joel Lithgow",
     header_links={
         "Site": "https://joellithgow.com",
     },
+    # Signed out, / sends you to the login, which sends you back here.
+    auth=lambda request: check_session_auth(request, cms),
 )
 
 _chat_base_url = os.environ.get("OPENAI_BASE_URL", "http://localhost:1234/v1")
@@ -250,11 +269,22 @@ async def lifespan(app):
             async with media.lifespan_context(app):
                 yield
 
-# Starlette's Mount only matches "/admin/" and below, and the bare "/admin"
-# falls through to the catch-all CMS mount, which 404s. A redirect makes the
-# path people actually type work.
-async def _admin_redirect(request: Request) -> RedirectResponse:
-    return RedirectResponse("/admin/", status_code=308)
+def _redirect(to: str) -> Route:
+    """A GET route that sends a path to *to*, for paths people type or bookmarked.
+
+    Starlette's Mount only matches "/editor/" and below, and the bare "/editor"
+    falls through to the catch-all CMS mount, which 404s.
+    """
+
+    async def endpoint(request: Request) -> RedirectResponse:
+        return RedirectResponse(to, status_code=308)
+
+    return Route("/" + to.strip("/").split("/")[0], endpoint=endpoint, methods=["GET"])
+
+
+# The portal used to live at /admin. Bookmarks there go home.
+async def _old_portal_redirect(request: Request) -> RedirectResponse:
+    return RedirectResponse(PORTAL_URL, status_code=308)
 
 
 oauth_routes = (
@@ -274,8 +304,15 @@ oauth_routes = (
 app = Starlette(
     routes=[
         *oauth_routes,
-        Route("/admin", endpoint=_admin_redirect, methods=["GET"]),
-        Mount("/admin", app=portal.app),
+        # The portal at the root: /, /apps.json and /app-bar.js. Spliced in, not
+        # mounted, because the CMS is at / too and a Mount would take every path.
+        *portal.routes,
+        Route("/admin", endpoint=_old_portal_redirect, methods=["GET"]),
+        Route("/admin/", endpoint=_old_portal_redirect, methods=["GET"]),
+        _redirect("/editor/"),
+        _redirect("/gateways/"),
+        _redirect("/feedback/"),
+        *([_redirect(f"{MEDIA_MOUNT_PATH}/admin")] if media else []),
         Mount("/editor", app=editor.app),
         Mount("/gateways", app=gateway_admin.app),
         Mount("/feedback", app=feedback_admin.app),

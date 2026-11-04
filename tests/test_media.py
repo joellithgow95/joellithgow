@@ -1,5 +1,5 @@
 """
-Tests for cms/media.py: mediakit mounted beside a real in-process CMS.
+Tests for cms/media.py: astraeus-media mounted beside a real in-process CMS.
 
 Nothing here reaches R2. Signing a presigned URL is local, and the routes under
 test never read or write an object.
@@ -38,7 +38,7 @@ def media_env(tmp_path, **extra) -> dict[str, str]:
 
 @pytest_asyncio.fixture
 async def site(tmp_path):
-    """``(client, mk)``: the CMS at "/" with mediakit above it, as in cms/main.py."""
+    """``(client, mk)``: the CMS at "/" with astraeus-media above it, as in cms/main.py."""
     cms = CMS(
         database_url=f"sqlite:///{tmp_path / 'content.db'}",
         auth="apikey",
@@ -86,9 +86,6 @@ async def test_media_routes_beat_the_cms_catch_all(site):
 @pytest.mark.parametrize(
     ("method", "path"),
     [
-        ("GET", "/media/admin"),
-        ("GET", "/media/admin/upload"),
-        ("GET", f"/media/admin/assets/{KEY}"),
         ("POST", "/media/upload/prepare"),
         ("POST", "/media/upload/confirm"),
         ("PATCH", f"/media/assets/{KEY}"),
@@ -97,10 +94,23 @@ async def test_media_routes_beat_the_cms_catch_all(site):
         ("DELETE", "/media/references"),
     ],
 )
-async def test_everything_that_writes_or_browses_is_401_anonymous(site, method, path):
+async def test_everything_that_writes_is_401_anonymous(site, method, path):
     client, _ = site
     res = await client.request(method, path, json={})
     assert res.status_code == 401
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "path", ["/media/admin", "/media/admin/upload", f"/media/admin/assets/{KEY}"]
+)
+async def test_the_admin_pages_send_a_signed_out_visitor_to_the_login(site, path):
+    """Browsing the library needs the login; the page sends you there and back."""
+    client, _ = site
+    res = await client.get(path)
+    assert res.status_code == 302
+    assert res.headers["location"].startswith("/api/auth/login?next=%2Fmedia%2Fadmin")
+    assert "photo" not in res.text
 
 
 @pytest.mark.asyncio
@@ -125,7 +135,9 @@ async def test_session_cookie_gets_the_admin_with_prefixed_links(site):
 async def test_a_forged_session_cookie_is_refused(site):
     client, _ = site
     bad = {"cms_session": generate_session_token("joel", secret="not-the-secret")}
-    assert (await client.get("/media/admin", cookies=bad)).status_code == 401
+    res = await client.get("/media/admin", cookies=bad)
+    assert res.status_code == 302
+    assert res.headers["location"].startswith("/api/auth/login")
 
 
 @pytest.mark.asyncio

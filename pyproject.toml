@@ -17,7 +17,7 @@ dependencies = [
     "spotipy>=2.23",
     "astraeus-otel>=0.1.0",
     "astraeus-portal>=0.1.0",
-    "mediakit[admin]>=0.2.0",
+    "astraeus-media[admin]>=0.2.0",
 ]
 
 [tool.uv]
@@ -30,7 +30,7 @@ starlette-cms-gateways = { path = "../astraeus/packages/starlette-cms-gateways",
 starlette-cms-feedback = { path = "../astraeus/packages/starlette-cms-feedback", editable = true }
 astraeus-otel = { path = "../astraeus/packages/astraeus-otel", editable = true }
 astraeus-portal = { path = "../astraeus/packages/astraeus-portal", editable = true }
-mediakit = { path = "../astraeus/packages/mediakit", editable = true }
+astraeus-media = { path = "../astraeus/packages/astraeus-media", editable = true }
 
 # The legacy month and outing gateways (spotify-liked-dump, inaturalist-field-trips) are
 # no longer registered: their posts became blog posts with slices (cms/migrate_to_slices.py),
