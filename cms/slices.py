@@ -69,6 +69,10 @@ class _LinkPicks:
     refs: list = ListField(DocumentRef(block_type="link", on_delete="nullify"), label="Links")
 
 
+class _TastePicks:
+    refs: list = ListField(DocumentRef(block_type="taste_shape", on_delete="nullify", label_field="name"), label="Taste shapes")
+
+
 class _ByTag:
     # Suggests the tags already on link documents, so a slice names a list that exists.
     tags: list = TagsField(required=True, suggest_from="link", placeholder="developer-blogs")
@@ -106,6 +110,19 @@ class LinkPicks(build_block_model("link_picks", _LinkPicks)):
     """Hand-picked link documents, shown in this order."""
 
 
+class TastesRange(build_block_model("tastes_range", _DateRange)):
+    """Taste shapes whose tasted_on falls between from_date and to_date (both included), oldest first."""
+
+    _check_order = model_validator(mode="after")(_in_order)
+
+
+class TastePicks(build_block_model("taste_picks", _TastePicks)):
+    """Hand-picked taste_shape documents, shown in this order.
+
+    A post whose only content is this slice (no body) is a taste beat in the feed.
+    """
+
+
 class LinksByTag(build_block_model("links_by_tag", _ByTag)):
     """Every published link document carrying any of these tags, newest first. Grows as links are tagged.
 
@@ -134,4 +151,14 @@ class LinksByTag(build_block_model("links_by_tag", _ByTag)):
         return value
 
 
-SLICE_BLOCKS = [MusicRange, NatureRange, MusicPicks, NaturePicks, DefinitionPicks, LinkPicks, LinksByTag]
+SLICE_BLOCKS = [
+    MusicRange,
+    NatureRange,
+    MusicPicks,
+    NaturePicks,
+    DefinitionPicks,
+    LinkPicks,
+    LinksByTag,
+    TastesRange,
+    TastePicks,
+]

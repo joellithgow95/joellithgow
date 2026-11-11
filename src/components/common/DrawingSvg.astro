@@ -1,0 +1,42 @@
+---
+/**
+ * One hand-drawn shape (astraeus starlette_cms.drawing.Drawing) as inline SVG.
+ * Shared by doodles and, next, taste shapes. Strokes default to currentColor,
+ * so a drawing follows the theme it sits in.
+ */
+import type { Drawing } from '@lib/astraeus-types';
+
+export interface Props {
+  drawing: Drawing;
+  class?: string;
+  style?: string;
+  /** A light graphite roughness on the edges (render only; nothing stored) */
+  pencil?: boolean;
+  [attr: `data-${string}`]: string | undefined;
+}
+
+const { drawing, class: className, style, pencil = false, ...rest } = Astro.props;
+const filterId = pencil ? `pencil-${Math.random().toString(36).slice(2, 8)}` : undefined;
+---
+
+<svg class={className} style={style} viewBox={drawing.viewbox} {...rest}>
+  {filterId && (
+    <filter id={filterId} x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="1" seed="3" result="grain" />
+      <feDisplacementMap in="SourceGraphic" in2="grain" scale="0.35" />
+    </filter>
+  )}
+  <g filter={filterId ? `url(#${filterId})` : undefined}>
+  {drawing.paths.map((p) => (
+    <path
+      d={p.d}
+      stroke={p.stroke ?? 'currentColor'}
+      stroke-width={p.stroke_width ?? 2}
+      fill={p.fill ?? 'none'}
+      opacity={p.opacity}
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+  ))}
+  </g>
+</svg>

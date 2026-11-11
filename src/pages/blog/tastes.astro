@@ -1,0 +1,132 @@
+---
+/**
+ * /blog/tastes: every published taste shape, by month, newest first. The
+ * shapes side by side are the point: each tile is the shape on paper with the
+ * item's name; the photo, when there is one, shows on hover or tap.
+ */
+import BaseLayout from '@components/common/BaseLayout.astro';
+import ThemeModal from '@components/modals/ThemeModal.astro';
+import DrawingSvg from '@components/common/DrawingSvg.astro';
+import { getCollection } from 'astro:content';
+import { byTastedDesc, tasteAnchor, tastePhotoUrl, type TasteShape } from '@lib/tastes';
+import '../../styles/log.css';
+
+const tastes = (await getCollection('taste_shapes')).map((e) => e.data as TasteShape).sort(byTastedDesc);
+const months = new Map<string, TasteShape[]>();
+for (const t of tastes) {
+  const key = t.tasted_on.slice(0, 7);
+  months.set(key, [...(months.get(key) ?? []), t]);
+}
+const monthLabel = (key: string) =>
+  new Date(`${key}-01T00:00:00Z`).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+const count = (k: string) => tastes.filter((t) => t.kind === k).length;
+// Only the kinds there are, in this order.
+const kinds = (['wine', 'beer', 'food', 'drink', 'other'] as const).filter((k) => count(k) > 0);
+
+const pageTitle = 'Joel Lithgow > Tastes';
+const pageDescription = 'The shapes I see in what I eat and drink, drawn where I had it.';
+---
+
+<BaseLayout title={pageTitle} description={pageDescription}>
+  <main class="blog-container">
+    <div class="blog-wrapper blog-wrapper--full">
+      <div class="main-content">
+        <header class="section-head">
+          <h1 class="section-title">Tastes</h1>
+          <p class="section-desc">{pageDescription}</p>
+        </header>
+
+        <div class="taste-filters" role="group" aria-label="Filter by kind">
+          <button type="button" class="taste-filter is-on" data-kind="all">All <span>{tastes.length}</span></button>
+          {kinds.map((k) => <button type="button" class="taste-filter" data-kind={k}>{k} <span>{count(k)}</span></button>)}
+        </div>
+
+        {tastes.length === 0 && <p class="section-desc">No taste shapes yet.</p>}
+
+        {[...months.entries()].map(([key, items]) => (
+          <section class="taste-month">
+            <h2 class="taste-month-title">{monthLabel(key)}</h2>
+            <div class="taste-grid">
+              {items.map((t) => (
+                <a class="taste-card" id={tasteAnchor(t)} href={`#${tasteAnchor(t)}`} data-kind={t.kind}>
+                  <span class="taste-card-paper">
+                    {t.shape ? <DrawingSvg drawing={t.shape} pencil class="taste-card-svg" /> : <span class="taste-card-blank">No shape yet</span>}
+                    {t.photo && <img class="taste-card-photo" src={tastePhotoUrl(t.photo, 400)} alt={t.name} loading="lazy" />}
+                    {t.photo && <span class="taste-card-cam" aria-hidden="true">photo</span>}
+                  </span>
+                  <span class="taste-card-name">{t.name}</span>
+                  <span class="taste-card-meta">{[t.kind, t.place].filter(Boolean).join(' · ')}</span>
+                </a>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
+  </main>
+
+  <ThemeModal />
+</BaseLayout>
+
+<script>
+  const buttons = document.querySelectorAll<HTMLButtonElement>('.taste-filter');
+  buttons.forEach((b) => b.addEventListener('click', () => {
+    buttons.forEach((x) => x.classList.toggle('is-on', x === b));
+    const kind = b.dataset.kind;
+    document.querySelectorAll<HTMLElement>('.taste-card').forEach((c) => {
+      c.hidden = kind !== 'all' && c.dataset.kind !== kind;
+    });
+    document.querySelectorAll<HTMLElement>('.taste-month').forEach((m) => {
+      m.hidden = !m.querySelector('.taste-card:not([hidden])');
+    });
+  }));
+</script>
+
+<style>
+  @import '../../styles/tokens.css';
+  @import '../../styles/themes.css';
+
+  .taste-filters { display: flex; flex-wrap: wrap; gap: var(--space-xs); margin: 0 0 var(--space-lg) 0; }
+  .taste-filter {
+    font: inherit; font-size: var(--text-sm); text-transform: capitalize;
+    padding: 4px 12px; border-radius: 999px; cursor: pointer;
+    background: transparent; color: var(--text-secondary);
+    border: 1px solid var(--gradient-primary-subtle, rgba(0,0,0,.12));
+  }
+  .taste-filter span { opacity: .6; margin-left: 4px; }
+  .taste-filter.is-on { color: var(--text-primary); border-color: var(--accent-primary); }
+
+  .taste-month { border-top: 1px solid var(--gradient-primary-subtle); padding-top: var(--space-lg); margin-bottom: var(--space-lg); }
+  .taste-month:first-of-type { border-top: none; padding-top: 0; }
+  .taste-month-title {
+    font-family: var(--font-display); font-weight: var(--font-semibold);
+    font-size: var(--heading-md); letter-spacing: var(--tracking-tight); margin: 0 0 var(--space-md) 0;
+  }
+  .taste-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-lg) var(--space-md); }
+  .taste-card { display: flex; flex-direction: column; gap: 2px; color: inherit; text-decoration: none; }
+  .taste-card[hidden] { display: none; }
+  .taste-card-paper {
+    position: relative; display: block; aspect-ratio: 1; padding: 10%; box-sizing: border-box;
+    background: #fbfaf7; color: #1d2126;
+    border: 1px solid rgba(0,0,0,.08); border-radius: var(--radius-sm);
+    margin-bottom: var(--space-xs); overflow: hidden;
+  }
+  .taste-card-paper :global(.taste-card-svg) { width: 100%; height: 100%; display: block; overflow: visible; }
+  .taste-card-photo {
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    opacity: 0; transition: opacity .2s ease;
+  }
+  .taste-card:hover .taste-card-photo, .taste-card:focus-visible .taste-card-photo { opacity: 1; }
+  .taste-card-paper :global(.taste-card-svg) { transition: opacity .2s ease; }
+  .taste-card:hover .taste-card-paper :global(.taste-card-svg), .taste-card:focus-visible .taste-card-paper :global(.taste-card-svg) { opacity: 0; }
+  .taste-card-blank { display: flex; align-items: center; justify-content: center; height: 100%; font-size: var(--text-xs); color: #6b7078; }
+  .taste-card-cam { position: absolute; right: 6px; bottom: 4px; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; color: #6b7078; }
+  .taste-card:hover .taste-card-cam { opacity: 0; }
+  .taste-card-name { font-family: var(--font-display); font-size: var(--text-base); color: var(--text-primary); line-height: 1.25; }
+  .taste-card:hover .taste-card-name { color: var(--accent-primary); }
+  .taste-card-meta { font-size: var(--text-xs); color: var(--text-secondary); text-transform: capitalize; }
+
+  @media (max-width: 480px) {
+    .taste-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>

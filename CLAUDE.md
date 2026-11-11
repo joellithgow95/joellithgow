@@ -232,6 +232,7 @@ src/content/config.ts           # collection definitions + Zod schemas
 | `experience` | `experience_entry` | Work history |
 | `spotify_likes`, `inat_observations` | `spotify_like`, `inat_observation` | Gateway data docs (ADR 026), filed under **Data** in the editor, keyed by document id. Shown only through posts' slices and the music/nature pages |
 | `links` | `link` | Hand-curated links, in the main content list (not **Data**, which is only scraped third-party data). Shown only through posts' link slices |
+| `taste_shapes` | `taste_shape` | Joel's drawn taste shapes (a drawing pad in the editor; photo optional, beside the shape). Shown through posts' `taste_picks` / `tastes_range` slices and on `/blog/tastes`. See `docs/blog-conventions.md`, *Taste shapes* |
 | `definitions` | `definition` | Dictionary data; pages under `/blog/dictionary/` (the old `/blog/<slug>` URLs redirect there). No feed card, tag-page entry or RSS item: it reaches the feed only through a post's `definition_picks`. CMS-only, not seeded from local files |
 | `applications` | Local MDX | Not in CMS — intentional |
 
@@ -242,7 +243,7 @@ src/content/config.ts           # collection definitions + Zod schemas
 - CMS fields are `snake_case` (`publish_date`, `reading_time`). The legacy markdown files in `src/content/blog/` are seed sources with `camelCase` frontmatter (`publishDate`, `readingTime`); their `type` and `hasDetailPage` are no longer read. The site reads from the CMS, not from those files.
 - A definition is **not** a blog post: it has `term`, `definition`, `personal_notes` (legacy; empty on new ones), `sources`, `tags`. `fetchBlogPosts()` (`src/lib/astraeus.ts`) returns posts only, each tagged `kind: 'post'`; definitions come from `fetchDefinitions()`. `blog_post` has no type field: every post has a detail page, and the feed card shows the excerpt, or the whole body when it is short (see `docs/blog-conventions.md`).
 - **Slices.** `blog_post.data` is a list of slice blocks (`cms/slices.py`): `music_range`, `nature_range`,
-  `music_picks`, `nature_picks`, `definition_picks`, `link_picks`, `links_by_tag`. Each is an instruction, not a copy:
+  `music_picks`, `nature_picks`, `definition_picks`, `link_picks`, `links_by_tag`, `taste_picks`, `tastes_range`. Each is an instruction, not a copy:
   `src/lib/slices.ts` resolves it against the published data docs at build time and skips a picked id that is not
   published, so a slice cannot break the build. The CMS validates slices on save (dates, order, tag shape, and that
   every picked ref exists and has the right type). Components: `src/components/blog/slices/`.
