@@ -296,6 +296,19 @@ const spotifyLikeSchema = z.object({
   ...dataMeta,
 });
 
+const spotifyAlbumSchema = z.object({
+  title: z.string().nullish(),
+  album_id: z.string(),
+  album_name: z.string(),
+  artist_name: z.string().nullish(),
+  release_date: z.string().nullish(),
+  total_tracks: z.number().nullish(),
+  cover_url: z.string().nullish(),
+  spotify_url: z.string().nullish(),
+  saved_at: z.string(),
+  ...dataMeta,
+});
+
 const inatObservationSchema = z.object({
   title: z.string().nullish(),
   observation_id: z.number().nullish(),
@@ -430,6 +443,7 @@ export const collections = {
 
   // ── Astraeus CMS — data documents (ADR 026) ──────────────────────────────
   spotify_likes: defineCollection({ loader: dataLoader('spotify_like'), schema: spotifyLikeSchema }),
+  spotify_albums: defineCollection({ loader: dataLoader('spotify_album'), schema: spotifyAlbumSchema }),
   inat_observations: defineCollection({ loader: dataLoader('inat_observation'), schema: inatObservationSchema }),
   links: defineCollection({ loader: dataLoader('link'), schema: linkDocSchema }),
   taste_shapes: defineCollection({ loader: dataLoader('taste_shape'), schema: tasteShapeSchema }),

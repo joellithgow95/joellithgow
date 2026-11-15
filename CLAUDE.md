@@ -163,7 +163,12 @@ The gateways are `starlette-cms-gateways` subclasses in `cms/gateways/`, run thr
   Every field is the gateway's, so a re-sync overwrites the record (the `title` is a label built from the data, not
   for hand edits), and a re-sync that finds nothing new writes nothing. No clustering: which sightings make an outing
   is a post's choice. Stored observations are slim records (`curate_observation`), not iNaturalist's raw payload.
-- **Daily sync.** The `gateways-daily` CronJob in jlithgow-ops runs both with `since_last_sync` at 04:00 Pacific.
+- **`spotify-albums`.** One document per album saved to the Spotify library (`spotify_album`, ref
+  `spotify:album:<album id>`), under **Data** like the likes: name, artist, release date, track count, 640px cover,
+  link, `saved_at`. Same Spotify credentials and scope as `spotify-likes` (`user-library-read` covers saved albums),
+  same ranges and `LIKED_FLOOR`, its own cursor. It never makes a post: Joel makes an album beat by hand, a
+  `blog_post` with no body whose only slice is an `album_picks` of one album (chosen 2026-11-15).
+- **Daily sync.** The `gateways-daily` CronJob in jlithgow-ops runs the gateways with `since_last_sync` at 04:00 Pacific.
 - **Monthly music post.** `uv run python -m cms.compose_music_month` (dry run; `--api-key … --apply` to write)
   makes last month's "What I've been listening to — <month>" as a **draft** `blog_post` in Staging, slug
   `spotify-dump-YYYY-MM`, holding only a `music_range` slice. Import ref `music:month:YYYY-MM`, so a month that
@@ -230,7 +235,7 @@ src/content/config.ts           # collection definitions + Zod schemas
 | `blog` | `blog_post` | Every post (one type: articles, short thoughts, link lists) |
 | `projects` | `project_page` | Case studies |
 | `experience` | `experience_entry` | Work history |
-| `spotify_likes`, `inat_observations` | `spotify_like`, `inat_observation` | Gateway data docs (ADR 026), filed under **Data** in the editor, keyed by document id. Shown only through posts' slices and the music/nature pages |
+| `spotify_likes`, `spotify_albums`, `inat_observations` | `spotify_like`, `spotify_album`, `inat_observation` | Gateway data docs (ADR 026), filed under **Data** in the editor, keyed by document id. Shown only through posts' slices and the music/nature pages |
 | `links` | `link` | Hand-curated links, in the main content list (not **Data**, which is only scraped third-party data). Shown only through posts' link slices |
 | `taste_shapes` | `taste_shape` | Joel's drawn taste shapes (a drawing pad in the editor; photo optional, beside the shape). Shown through posts' `taste_picks` / `tastes_range` slices and on `/blog/tastes`. See `docs/blog-conventions.md`, *Taste shapes* |
 | `definitions` | `definition` | Dictionary data; pages under `/blog/dictionary/` (the old `/blog/<slug>` URLs redirect there). No feed card, tag-page entry or RSS item: it reaches the feed only through a post's `definition_picks`. CMS-only, not seeded from local files |
@@ -243,7 +248,7 @@ src/content/config.ts           # collection definitions + Zod schemas
 - CMS fields are `snake_case` (`publish_date`, `reading_time`). The legacy markdown files in `src/content/blog/` are seed sources with `camelCase` frontmatter (`publishDate`, `readingTime`); their `type` and `hasDetailPage` are no longer read. The site reads from the CMS, not from those files.
 - A definition is **not** a blog post: it has `term`, `definition`, `personal_notes` (legacy; empty on new ones), `sources`, `tags`. `fetchBlogPosts()` (`src/lib/astraeus.ts`) returns posts only, each tagged `kind: 'post'`; definitions come from `fetchDefinitions()`. `blog_post` has no type field: every post has a detail page, and the feed card shows the excerpt, or the whole body when it is short (see `docs/blog-conventions.md`).
 - **Slices.** `blog_post.data` is a list of slice blocks (`cms/slices.py`): `music_range`, `nature_range`,
-  `music_picks`, `nature_picks`, `definition_picks`, `link_picks`, `links_by_tag`, `taste_picks`, `tastes_range`. Each is an instruction, not a copy:
+  `music_picks`, `album_picks`, `nature_picks`, `definition_picks`, `link_picks`, `links_by_tag`, `taste_picks`, `tastes_range`. Each is an instruction, not a copy:
   `src/lib/slices.ts` resolves it against the published data docs at build time and skips a picked id that is not
   published, so a slice cannot break the build. The CMS validates slices on save (dates, order, tag shape, and that
   every picked ref exists and has the right type). Components: `src/components/blog/slices/`.

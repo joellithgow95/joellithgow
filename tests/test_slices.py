@@ -52,12 +52,21 @@ async def _song(client: httpx.AsyncClient, track_id: str = "t1") -> str:
     )
 
 
+async def _album(client: httpx.AsyncClient, album_id: str = "al1") -> str:
+    return await _id(
+        client,
+        "spotify_album",
+        {"album_id": album_id, "album_name": "Record", "saved_at": "2026-10-03T12:00:00Z"},
+    )
+
+
 async def _observation(client: httpx.AsyncClient) -> str:
     return await _id(client, "inat_observation", {"observation_id": 1, "observed_on": "2026-07-04"})
 
 
 async def test_every_slice_kind_saves(client):
     song = await _song(client)
+    album = await _album(client)
     obs = await _observation(client)
     term = await _id(client, "definition", {"term": "Comp Stomp", "publish_date": "2026-10-01", "definition": "x"})
     link = await _id(
@@ -67,6 +76,7 @@ async def test_every_slice_kind_saves(client):
         {"block_type": "music_range", "from_date": "2026-10-01", "to_date": "2026-10-31"},
         {"block_type": "nature_range", "from_date": "2026-07-04", "to_date": "2026-07-04"},
         {"block_type": "music_picks", "refs": [song]},
+        {"block_type": "album_picks", "refs": [album]},
         {"block_type": "nature_picks", "refs": [obs]},
         {"block_type": "definition_picks", "refs": [term]},
         {"block_type": "link_picks", "refs": [link]},
@@ -100,6 +110,13 @@ async def test_picks_must_be_the_sources_type(client):
     resp = await _create(client, "blog_post", _post([{"block_type": "music_picks", "refs": [obs]}]))
     assert resp.status_code == 422
     assert "spotify_like" in resp.text
+
+
+async def test_album_picks_take_albums_not_songs(client):
+    song = await _song(client)
+    resp = await _create(client, "blog_post", _post([{"block_type": "album_picks", "refs": [song]}]))
+    assert resp.status_code == 422
+    assert "spotify_album" in resp.text
 
 
 async def test_picks_must_exist(client):
@@ -148,7 +165,7 @@ async def test_slice_kinds_are_described_in_the_schema(client):
     described = {d["properties"]["block_type"]["const"]: d.get("description", "") for d in defs.values() if "block_type" in d.get("properties", {})}
     assert set(described) == {
         "music_range", "nature_range", "music_picks", "nature_picks", "definition_picks", "link_picks", "links_by_tag",
-        "tastes_range", "taste_picks",
+        "tastes_range", "taste_picks", "album_picks",
     }
     assert all(described.values())
 

@@ -18,17 +18,20 @@ import type {
   INatObservation,
   LinkDoc,
   Slice,
+  SpotifyAlbum,
   SpotifyLike,
 } from './astraeus-types';
 import type { TasteShape } from './tastes';
 
 export type Song = AstraeusDocument<SpotifyLike>;
+export type Album = AstraeusDocument<SpotifyAlbum>;
 export type Observation = AstraeusDocument<INatObservation>;
 export type Link = AstraeusDocument<LinkDoc>;
 export type Entry = AstraeusDocument<Definition>;
 
 export type ResolvedSlice =
   | { kind: 'music'; songs: Song[] }
+  | { kind: 'albums'; albums: Album[] }
   | { kind: 'nature'; observations: Observation[] }
   | { kind: 'definitions'; definitions: Entry[] }
   | { kind: 'links'; links: Link[]; tags?: string[] }
@@ -36,6 +39,7 @@ export type ResolvedSlice =
 
 export interface DataPool {
   songs: Song[];
+  albums: Album[];
   observations: Observation[];
   definitions: Entry[];
   links: Link[];
@@ -47,8 +51,9 @@ let pool: Promise<DataPool> | undefined;
 /** Every published data document, loaded once per build. */
 export function loadDataPool(): Promise<DataPool> {
   pool ??= (async () => {
-    const [songs, observations, definitions, links, tastes] = await Promise.all([
+    const [songs, albums, observations, definitions, links, tastes] = await Promise.all([
       getCollection('spotify_likes'),
+      getCollection('spotify_albums'),
       getCollection('inat_observations'),
       getCollection('definitions'),
       getCollection('links'),
@@ -56,6 +61,7 @@ export function loadDataPool(): Promise<DataPool> {
     ]);
     return {
       songs: songs.map((e) => e.data as Song),
+      albums: albums.map((e) => e.data as Album),
       observations: observations.map((e) => e.data as Observation),
       definitions: definitions.map((e) => e.data as Entry),
       links: links.map((e) => e.data as Link),
@@ -98,6 +104,8 @@ export function resolveSlice(slice: Slice | Record<string, unknown>, data: DataP
       };
     case 'music_picks':
       return { kind: 'music', songs: pick(data.songs, s.refs) };
+    case 'album_picks':
+      return { kind: 'albums', albums: pick(data.albums, s.refs) };
     case 'nature_picks':
       return { kind: 'nature', observations: pick(data.observations, s.refs) };
     case 'definition_picks':
@@ -129,6 +137,7 @@ export function resolveSlice(slice: Slice | Record<string, unknown>, data: DataP
 function isEmpty(r: ResolvedSlice): boolean {
   switch (r.kind) {
     case 'music': return r.songs.length === 0;
+    case 'albums': return r.albums.length === 0;
     case 'nature': return r.observations.length === 0;
     case 'definitions': return r.definitions.length === 0;
     case 'links': return r.links.length === 0;

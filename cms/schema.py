@@ -84,7 +84,8 @@ def register_documents(cms: CMS) -> None:
                 "Data this post shows, as a list of slices: songs or observations from a date range "
                 "(music_range, nature_range), hand-picked songs, observations, definitions or links "
                 "(music_picks, nature_picks, definition_picks, link_picks), every link with a tag "
-                "(links_by_tag), or taste shapes, picked or by date (taste_picks, tastes_range). "
+                "(links_by_tag), taste shapes, picked or by date (taste_picks, tastes_range), or saved "
+                "albums (album_picks; a post with no body and one album is an album beat). "
                 "Shown after the body, in this order."
             ),
         )
@@ -149,6 +150,18 @@ def register_documents(cms: CMS) -> None:
         album_art_url: str = TextField(max_length=1000)
         spotify_url: str = TextField(max_length=1000)
         liked_at: str = TextField(required=True)                        # ISO 8601 datetime, UTC
+
+    @cms.document("spotify_album", group="Data")
+    class SpotifyAlbumDocument:
+        title: str = TextField(max_length=1000)                         # "Album — Artist"
+        album_id: str = TextField(required=True, max_length=100)        # Spotify album id
+        album_name: str = TextField(required=True, max_length=500)
+        artist_name: str = TextField(max_length=500)
+        release_date: str = TextField(max_length=20)                    # YYYY-MM-DD, YYYY-MM or YYYY
+        total_tracks: float | None = NumberField(precision=0)
+        cover_url: str = TextField(max_length=1000)                     # 640px cover
+        spotify_url: str = TextField(max_length=1000)
+        saved_at: str = TextField(required=True)                        # ISO 8601 datetime, UTC
 
     @cms.document("inat_observation", group="Data")
     class INatObservationDocument:

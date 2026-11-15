@@ -97,7 +97,7 @@ export interface BlogPost {
 
 export type Slice =
   | { block_type: 'music_range' | 'nature_range' | 'tastes_range'; from_date: string; to_date: string }
-  | { block_type: 'music_picks' | 'nature_picks' | 'definition_picks' | 'link_picks' | 'taste_picks'; refs: string[] }
+  | { block_type: 'music_picks' | 'album_picks' | 'nature_picks' | 'definition_picks' | 'link_picks' | 'taste_picks'; refs: string[] }
   | { block_type: 'links_by_tag'; tags: string[] };
 
 export interface HeroMedia {
@@ -210,6 +210,22 @@ export interface SpotifyLike {
   spotify_url?: string;
   /** ISO 8601 datetime, UTC */
   liked_at: string;
+}
+
+/** A saved album (cms/schema.py `spotify_album`). */
+export interface SpotifyAlbum {
+  title?: string;
+  album_id: string;
+  album_name: string;
+  artist_name?: string;
+  /** YYYY-MM-DD, YYYY-MM or YYYY */
+  release_date?: string;
+  total_tracks?: number | null;
+  /** 640px cover */
+  cover_url?: string;
+  spotify_url?: string;
+  /** ISO 8601 datetime, UTC */
+  saved_at: string;
 }
 
 export interface INatObservation {
