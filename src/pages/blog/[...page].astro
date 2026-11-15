@@ -118,6 +118,8 @@ const slicesBySlug = new Map(
 //   quoted term, and the definition sits right under the title.
 // - A post whose only slice picks one link is titled with that link, which
 //   links out with ↗; the slice itself is not drawn.
+// - A post with no body whose only slice picks one saved album is an album
+//   beat: its title links to the album on Spotify with ↗, over the cover.
 const onlyDefinitions = (slug: string) => {
   const s = slicesBySlug.get(slug) ?? [];
   return s.length === 1 && s[0].kind === 'definitions' ? s[0].definitions : null;
@@ -125,6 +127,10 @@ const onlyDefinitions = (slug: string) => {
 const onlyTastes = (slug: string) => {
   const s = slicesBySlug.get(slug) ?? [];
   return s.length === 1 && s[0].kind === 'tastes' ? s[0].tastes : null;
+};
+const onlyAlbum = (slug: string) => {
+  const s = slicesBySlug.get(slug) ?? [];
+  return s.length === 1 && s[0].kind === 'albums' && s[0].albums.length === 1 ? s[0].albums[0] : null;
 };
 const onlyLink = (slug: string) => {
   const s = slicesBySlug.get(slug) ?? [];
@@ -233,9 +239,12 @@ const jsonLd = {
                 const pickedDefs = onlyDefinitions(post.slug);
                 const pickedLink = onlyLink(post.slug);
                 const pickedTastes = onlyTastes(post.slug);
-                const isBeat = !!(pickedDefs || pickedLink || pickedTastes) && !body.trim();
+                const pickedAlbum = onlyAlbum(post.slug);
+                const isBeat = !!(pickedDefs || pickedLink || pickedTastes || pickedAlbum) && !body.trim();
+                // Where a title that links out goes: a link post's link, or an album beat's album
+                const outHref = pickedLink?.url ?? (isBeat ? pickedAlbum?.spotify_url : undefined);
                 // A card cut short has no other way to the rest, so its title leads to the post page
-                const isCut = !isBeat && !pickedLink && !excerpt && !showsFullBody;
+                const isCut = !isBeat && !outHref && !excerpt && !showsFullBody;
                 const defTitle = pickedDefs && (pickedDefs.length === 1 || isBeat) ? pickedDefs : null;
                 // The quote marks around a definition title are red
                 const titleMarkup = defTitle
@@ -259,9 +268,9 @@ const jsonLd = {
                       {isBeat && defTitle ? (
                         <span class="post-title-text">{titleMarkup}</span>
                       ) : (
-                      pickedLink ? (
+                      outHref ? (
                       <a
-                        href={pickedLink.url}
+                        href={outHref}
                         class="post-title-link"
                         target="_blank"
                         rel="noopener noreferrer"

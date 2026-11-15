@@ -14,7 +14,7 @@ from datetime import UTC, date, datetime
 from typing import Any
 
 import pytest
-from gateway_fakes import FAR, PARK, FakeSpotify, library, liked, raw_obs
+from gateway_fakes import FAR, PARK, FakeSpotify, library, liked, raw_obs, saved_album
 from starlette_cms_gateways.base import SyncRange, SyncWindow
 from starlette_cms_gateways.client import CMSClient
 
@@ -23,6 +23,7 @@ from cms.gateways.inaturalist_observations import (
     INaturalistObservationsGateway,
     observation_body,
 )
+from cms.gateways.spotify_albums import ALBUM_FIELDS, SpotifyAlbumsGateway, curate_album
 from cms.gateways.spotify_likes import (
     LIKE_FIELDS,
     SpotifyLikesGateway,
@@ -60,6 +61,7 @@ async def test_data_types_are_filed_under_data(env):
     client, _, _ = env
     schema = (await client._get_http().get("http://testserver/api/schema")).json()
     assert schema["spotify_like"]["group"] == "Data"
+    assert schema["spotify_album"]["group"] == "Data"
     assert schema["inat_observation"]["group"] == "Data"
     assert "group" not in schema["blog_post"]
     assert "group" not in schema["link"]  # hand-curated, so not under Data
@@ -175,6 +177,92 @@ async def test_a_changed_track_overwrites_the_record(env):
     doc = (await docs_of(client, "spotify_like"))["spotify:like:s1"]
     assert doc["body"]["album_name"] == "Deluxe Edition"
     assert doc["published"] and not doc["has_draft"]
+
+
+# ---------------------------------------------------------------------------
+# Spotify saved albums
+# ---------------------------------------------------------------------------
+
+
+def albums_gateway(client, store, fake):
+    return SpotifyAlbumsGateway(cms_client=client, job_store=store, spotify_client=fake)
+
+
+def album_library() -> list[dict[str, Any]]:
+    """Newest first: two in September, one in August, one before the floor."""
+    return [
+        saved_album("b2", "2026-09-20T10:00:00Z"),
+        saved_album("b1", "2026-09-03T10:00:00Z"),
+        saved_album("a1", "2026-08-11T10:00:00Z"),
+        saved_album("old", "2024-11-30T10:00:00Z"),
+    ]
+
+
+def test_curate_album_keeps_what_a_beat_needs_and_no_noise():
+    body = curate_album(saved_album("b1", "2026-09-03T10:00:00Z"))
+    assert body == {
+        "title": "Record b1 — Band",
+        "album_id": "b1",
+        "album_name": "Record b1",
+        "artist_name": "Band",
+        "release_date": "2026-05-01",
+        "total_tracks": 11,
+        "cover_url": "big-b1",
+        "spotify_url": "https://open.spotify.com/album/b1",
+        "saved_at": "2026-09-03T10:00:00Z",
+    }
+    assert set(body) == set(ALBUM_FIELDS)
+
+
+def test_an_album_without_an_id_is_skipped():
+    item = saved_album("x", "2026-09-03T10:00:00Z")
+    item["album"]["id"] = None
+    assert curate_album(item) is None
+
+
+@pytest.mark.asyncio
+async def test_first_albums_sync_creates_one_published_doc_per_album_above_the_floor(env):
+    client, store, transport = env
+    transport.calls.clear()
+
+    result = await albums_gateway(client, store, FakeSpotify(album_library())).sync()
+
+    assert (result.created, result.errors) == (3, [])
+    docs = await docs_of(client, "spotify_album")
+    assert set(docs) == {f"spotify:album:{a}" for a in ("b2", "b1", "a1")}
+    b1 = docs["spotify:album:b1"]
+    assert b1["published"] and not b1["has_draft"]
+    assert b1["slug"] == "spotify-album-b1"
+    publishes = [p for m, p in transport.writes() if p.endswith("/publish")]
+    assert publishes == [f"/api/changesets/{result.changeset_id}/publish"], "one run, one build"
+    assert await docs_of(client, "blog_post") == {}, "a sync never makes a post"
+
+
+@pytest.mark.asyncio
+async def test_albums_and_likes_keep_separate_cursors(env):
+    client, store, _ = env
+    await store.set_cursor("spotify_likes", datetime(2026, 9, 30, tzinfo=UTC))
+    fake = FakeSpotify(album_library())
+
+    result = await albums_gateway(client, store, fake).sync()
+
+    assert result.created == 3, "the likes cursor does not narrow the albums run"
+    assert await store.get_cursor("spotify_albums") is not None
+
+
+@pytest.mark.asyncio
+async def test_incremental_albums_sync_adds_the_new_album_only(env):
+    client, store, _ = env
+    fake = FakeSpotify(album_library())
+    gw = albums_gateway(client, store, fake)
+    await store.set_cursor("spotify_albums", datetime(2026, 9, 25, tzinfo=UTC))
+    fake.items.insert(0, saved_album("n1", "2026-10-02T10:00:00Z"))
+
+    result = await gw.sync()
+
+    assert result.created == 1
+    assert fake.offsets == [0]
+    assert set(await docs_of(client, "spotify_album")) == {"spotify:album:n1"}
 
 
 # ---------------------------------------------------------------------------

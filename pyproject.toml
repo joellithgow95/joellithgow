@@ -37,4 +37,5 @@ astraeus-media = { path = "../astraeus/packages/astraeus-media", editable = true
 # and a run would write the old documents back on the same slugs.
 [project.entry-points."starlette_cms_gateways.gateways"]
 spotify-likes            = "cms.gateways.spotify_likes:SpotifyLikesGateway"
+spotify-albums           = "cms.gateways.spotify_albums:SpotifyAlbumsGateway"
 inaturalist-observations = "cms.gateways.inaturalist_observations:INaturalistObservationsGateway"

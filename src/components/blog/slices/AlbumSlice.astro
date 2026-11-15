@@ -1,0 +1,74 @@
+---
+/**
+ * AlbumSlice — saved albums a post shows (album_picks). Two forms:
+ * - beat: a feed beat about one album: a large cover, then artist, year and track count.
+ *   The beat's title links to the album on Spotify (see the feed page).
+ * - otherwise (feed card or post page): one row per album, a small cover beside its
+ *   name (linked to Spotify), artist, year and track count.
+ */
+import type { Album } from '@lib/slices';
+
+export interface Props {
+  albums: Album[];
+  beat?: boolean;
+}
+
+const { albums, beat = false } = Astro.props;
+const year = (a: Album) => (a.release_date ?? '').slice(0, 4);
+const meta = (a: Album) =>
+  [a.artist_name, year(a), a.total_tracks ? `${a.total_tracks} tracks` : ''].filter(Boolean).join(' · ');
+const one = beat && albums.length === 1 ? albums[0] : null;
+---
+
+{one ? (
+  <section class="slice slice--albums album-beat">
+    {one.cover_url && (
+      <a href={one.spotify_url || undefined} target="_blank" rel="noopener noreferrer" class="album-cover-link">
+        <img class="album-cover album-cover--beat" src={one.cover_url} alt={`${one.album_name} cover`} loading="lazy" />
+      </a>
+    )}
+    <p class="album-meta">{meta(one)}</p>
+  </section>
+) : (
+  <section class="slice slice--albums">
+    <ul class="album-list">
+      {albums.map((a) => (
+        <li class="album-row">
+          {a.cover_url && <img class="album-cover" src={a.cover_url} alt="" loading="lazy" />}
+          <span class="album-text">
+            {a.spotify_url ? (
+              <a href={a.spotify_url} class="album-name" target="_blank" rel="noopener noreferrer">{a.album_name}&nbsp;↗</a>
+            ) : (
+              <span class="album-name">{a.album_name}</span>
+            )}
+            <span class="album-meta">{meta(a)}</span>
+          </span>
+        </li>
+      ))}
+    </ul>
+  </section>
+)}
+
+<style>
+  @import '../../../styles/tokens.css';
+
+  .slice { margin: var(--space-lg) 0; }
+  .album-cover { display: block; aspect-ratio: 1; object-fit: cover; border-radius: var(--radius-sm); }
+  .album-meta { margin: 0; font-size: var(--text-xs); color: var(--text-secondary); }
+
+  /* Beat */
+  .album-beat { margin: var(--space-sm) 0 0 0; }
+  .album-cover-link { display: block; width: min(240px, 100%); margin-bottom: var(--space-sm); }
+  .album-cover--beat { width: 100%; }
+
+  /* Feed card and post page */
+  .album-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-sm); }
+  .album-row { display: flex; gap: var(--space-md); align-items: center; }
+  .album-row .album-cover { width: 64px; flex: none; }
+  .album-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .album-name {
+    font-weight: var(--font-semibold); color: var(--text-primary);
+    text-decoration: underline; text-decoration-color: var(--accent-secondary); text-underline-offset: 3px;
+  }
+  a.album-name:hover { color: var(--accent-primary); }
+</style>

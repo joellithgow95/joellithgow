@@ -114,8 +114,27 @@ def liked(track_id: str, added_at: str, name: str = "Song", artist: str = "Artis
     }
 
 
+def saved_album(album_id: str, added_at: str, name: str = "Record", artist: str = "Band") -> dict[str, Any]:
+    """A saved-album item shaped like Spotify's ``/me/albums``, noise included."""
+    return {
+        "added_at": added_at,
+        "album": {
+            "id": album_id,
+            "name": f"{name} {album_id}",
+            "artists": [{"name": artist}],
+            "images": [{"url": f"big-{album_id}"}, {"url": "small"}],
+            "release_date": "2026-05-01",
+            "release_date_precision": "day",
+            "total_tracks": 11,
+            "external_urls": {"spotify": f"https://open.spotify.com/album/{album_id}"},
+            "popularity": 50,  # volatile; not stored
+            "tracks": {"items": [{"name": "x"}] * 11},  # bulky; not stored
+        },
+    }
+
+
 class FakeSpotify:
-    """``current_user_saved_tracks`` over a newest-first list, 50 per page by default."""
+    """``current_user_saved_tracks`` (and ``_albums``) over a newest-first list, 50 per page by default."""
 
     def __init__(self, items: list[dict[str, Any]]) -> None:
         self.items = items
@@ -125,6 +144,8 @@ class FakeSpotify:
         self.offsets.append(offset)
         page = self.items[offset : offset + limit]
         return {"items": page, "next": "more" if offset + limit < len(self.items) else None}
+
+    current_user_saved_albums = current_user_saved_tracks
 
 
 def library() -> list[dict[str, Any]]:

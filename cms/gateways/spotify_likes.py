@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import asyncio
 import os
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from datetime import UTC, date, datetime
 from typing import Any
 
@@ -169,32 +169,46 @@ class SpotifyLikesGateway(BaseGateway):
         self, earliest: datetime | None, last_day: date | None
     ) -> list[dict[str, Any]]:
         """Liked songs from *earliest* to the end of *last_day*, newest first."""
-        likes: list[dict[str, Any]] = []
-        offset = 0
-        while True:
-            # spotipy is synchronous; keep the event loop free while it waits.
-            result = await asyncio.to_thread(
-                self._sp.current_user_saved_tracks, limit=_PAGE_SIZE, offset=offset
-            )
-            items = result.get("items", [])
-            if not items:
-                break
+        return await collect_saved(
+            self._sp.current_user_saved_tracks, curate_like, earliest, last_day
+        )
 
-            reached_before_range = False
-            for item in items:
-                liked_at = _parse_time(item.get("added_at") or "")
-                if liked_at is None:
-                    continue
-                if earliest is not None and liked_at < earliest:
-                    # Newest first: everything from here on is older still.
-                    reached_before_range = True
-                    break
-                if last_day is not None and liked_at.date() > last_day:
-                    continue
-                if (body := curate_like(item)) is not None:
-                    likes.append(body)
 
-            if reached_before_range or result.get("next") is None:
+async def collect_saved(
+    fetch_page: Callable[..., dict[str, Any]],
+    curate: Callable[[dict[str, Any]], dict[str, Any] | None],
+    earliest: datetime | None,
+    last_day: date | None,
+) -> list[dict[str, Any]]:
+    """
+    Page a newest-first Spotify library list (saved tracks or saved albums) and
+    curate the items saved from *earliest* to the end of *last_day*, newest first.
+    Stops paging at the first item older than *earliest*.
+    """
+    bodies: list[dict[str, Any]] = []
+    offset = 0
+    while True:
+        # spotipy is synchronous; keep the event loop free while it waits.
+        result = await asyncio.to_thread(fetch_page, limit=_PAGE_SIZE, offset=offset)
+        items = result.get("items", [])
+        if not items:
+            break
+
+        reached_before_range = False
+        for item in items:
+            saved_at = _parse_time(item.get("added_at") or "")
+            if saved_at is None:
+                continue
+            if earliest is not None and saved_at < earliest:
+                # Newest first: everything from here on is older still.
+                reached_before_range = True
                 break
-            offset += _PAGE_SIZE
-        return likes
+            if last_day is not None and saved_at.date() > last_day:
+                continue
+            if (body := curate(item)) is not None:
+                bodies.append(body)
+
+        if reached_before_range or result.get("next") is None:
+            break
+        offset += _PAGE_SIZE
+    return bodies

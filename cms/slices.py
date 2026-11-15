@@ -57,6 +57,10 @@ class _SongPicks:
     refs: list = ListField(DocumentRef(block_type="spotify_like", on_delete="nullify"), label="Songs")
 
 
+class _AlbumPicks:
+    refs: list = ListField(DocumentRef(block_type="spotify_album", on_delete="nullify"), label="Albums")
+
+
 class _ObservationPicks:
     refs: list = ListField(DocumentRef(block_type="inat_observation", on_delete="nullify"), label="Observations")
 
@@ -96,6 +100,13 @@ class NatureRange(build_block_model("nature_range", _DateRange)):
 
 class MusicPicks(build_block_model("music_picks", _SongPicks)):
     """Hand-picked spotify_like documents, shown in this order."""
+
+
+class AlbumPicks(build_block_model("album_picks", _AlbumPicks)):
+    """Hand-picked spotify_album documents (saved albums), shown in this order.
+
+    A post whose only content is this slice with one album (no body) is an album beat in the feed.
+    """
 
 
 class NaturePicks(build_block_model("nature_picks", _ObservationPicks)):
@@ -155,6 +166,7 @@ SLICE_BLOCKS = [
     MusicRange,
     NatureRange,
     MusicPicks,
+    AlbumPicks,
     NaturePicks,
     DefinitionPicks,
     LinkPicks,
