@@ -5,6 +5,7 @@
  */
 import LinksAccordion from '../LinksAccordion.astro';
 import type { Link } from '@lib/slices';
+import { linksSliceCompactHtml } from '@lib/slice-html';
 
 export interface Props {
   links: Link[];
@@ -12,28 +13,24 @@ export interface Props {
 }
 
 const { links, compact = false } = Astro.props;
-const LINKS_ON_CARD = 5;
+// The compact form is src/lib/slice-html.ts, shared with the live editor's draft
+// preview, so the styles are global, scoped by .slice--links.
 ---
 
+{compact ? (
+  <Fragment set:html={linksSliceCompactHtml(links)} />
+) : (
 <section class="slice slice--links">
-  {compact ? (
-    <ul class="slice-link-list">
-      {links.slice(0, LINKS_ON_CARD).map((l) => (
-        <li><a href={l.url} target="_blank" rel="noopener noreferrer">{l.title} ↗</a></li>
-      ))}
-      {links.length > LINKS_ON_CARD && <li class="slice-link-more">+{links.length - LINKS_ON_CARD} more</li>}
-    </ul>
-  ) : (
-    <LinksAccordion links={links.map((l) => ({ url: l.url, title: l.title, description: l.description ?? undefined, tags: l.tags ?? undefined }))} />
-  )}
+  <LinksAccordion links={links.map((l) => ({ url: l.url, title: l.title, description: l.description ?? undefined, tags: l.tags ?? undefined }))} />
 </section>
+)}
 
-<style>
+<style is:global>
   @import '../../../styles/tokens.css';
 
-  .slice { margin: var(--space-lg) 0; }
-  .slice-link-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-xs); }
-  .slice-link-list a { color: var(--text-primary); }
-  .slice-link-list a:hover { color: var(--accent-primary); }
-  .slice-link-more { font-size: var(--text-xs); color: var(--text-secondary); }
+  .slice--links { margin: var(--space-lg) 0; }
+  .slice--links .slice-link-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-xs); }
+  .slice--links .slice-link-list a { color: var(--text-primary); }
+  .slice--links .slice-link-list a:hover { color: var(--accent-primary); }
+  .slice--links .slice-link-more { font-size: var(--text-xs); color: var(--text-secondary); }
 </style>

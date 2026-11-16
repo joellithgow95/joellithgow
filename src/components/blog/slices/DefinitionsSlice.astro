@@ -4,6 +4,7 @@
  * page under /blog/dictionary/. Compact cuts the definition short.
  */
 import type { Entry } from '@lib/slices';
+import { definitionsSliceCompactHtml } from '@lib/slice-html';
 
 export interface Props {
   definitions: Entry[];
@@ -11,25 +12,30 @@ export interface Props {
 }
 
 const { definitions, compact = false } = Astro.props;
-const cut = (text: string, n: number) => (compact && text.length > n ? `${text.slice(0, n)}…` : text);
+// The compact form is src/lib/slice-html.ts, shared with the live editor's draft
+// preview, so the styles are global, scoped by .slice--definitions.
 ---
 
+{compact ? (
+  <Fragment set:html={definitionsSliceCompactHtml(definitions)} />
+) : (
 <section class="slice slice--definitions">
   {definitions.map((d) => (
     <div class="slice-definition">
       <a href={`/blog/dictionary/${d.slug}`} class="slice-term">{d.term}</a>
-      <blockquote class="slice-definition-text">{cut(d.definition, 200)}</blockquote>
+      <blockquote class="slice-definition-text">{d.definition}</blockquote>
     </div>
   ))}
 </section>
+)}
 
-<style>
+<style is:global>
   @import '../../../styles/tokens.css';
 
-  .slice { margin: var(--space-lg) 0; display: flex; flex-direction: column; gap: var(--space-md); }
-  .slice-term { font-family: var(--font-display); font-weight: var(--font-semibold); font-size: var(--text-lg); color: var(--text-primary); }
-  .slice-term:hover { color: var(--accent-primary); }
-  .slice-definition-text {
+  .slice--definitions { margin: var(--space-lg) 0; display: flex; flex-direction: column; gap: var(--space-md); }
+  .slice--definitions .slice-term { font-family: var(--font-display); font-weight: var(--font-semibold); font-size: var(--text-lg); color: var(--text-primary); }
+  .slice--definitions .slice-term:hover { color: var(--accent-primary); }
+  .slice--definitions .slice-definition-text {
     margin: var(--space-xs) 0 0 0;
     padding-left: var(--space-md);
     border-left: 3px solid var(--accent-secondary);

@@ -1,35 +1,20 @@
 ---
 /**
  * AlbumMosaic — liked songs as a grid of album covers; an album with more
- * liked songs gets a bigger cover.
+ * liked songs gets a bigger cover. The markup is src/lib/slice-html.ts, shared
+ * with the live editor's draft preview, so the styles are global.
  */
-import { albumMosaic, coverSpan, type MosaicSong } from '@lib/album-mosaic';
+import type { MosaicSong } from '@lib/album-mosaic';
+import { albumMosaicHtml } from '@lib/slice-html';
 
 export interface Props {
   songs: MosaicSong[];
 }
-
-const albums = albumMosaic(Astro.props.songs);
 ---
 
-{albums.length > 0 && (
-  <div class="spotify-cover-grid">
-    {albums.map((album) => {
-      const label = `${album.name} — ${album.artist} · ${album.count} song${album.count > 1 ? 's' : ''}`;
-      return album.href ? (
-        <a href={album.href} target="_blank" rel="noopener noreferrer" class="cover-cell" data-span={coverSpan(album.count)} title={label}>
-          <img src={album.art} alt={label} loading="lazy" />
-        </a>
-      ) : (
-        <span class="cover-cell" data-span={coverSpan(album.count)} title={label}>
-          <img src={album.art} alt={label} loading="lazy" />
-        </span>
-      );
-    })}
-  </div>
-)}
+<Fragment set:html={albumMosaicHtml(Astro.props.songs)} />
 
-<style>
+<style is:global>
   @import '../../styles/tokens.css';
 
   .spotify-cover-grid {

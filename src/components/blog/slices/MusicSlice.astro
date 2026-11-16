@@ -5,6 +5,7 @@
  */
 import AlbumMosaic from '../AlbumMosaic.astro';
 import type { Song } from '@lib/slices';
+import { musicSliceCompactHtml } from '@lib/slice-html';
 
 export interface Props {
   songs: Song[];
@@ -12,54 +13,58 @@ export interface Props {
 }
 
 const { songs, compact = false } = Astro.props;
+// The compact form is src/lib/slice-html.ts, shared with the live editor's draft
+// preview, so the styles are global, scoped by .slice--music.
 ---
 
+{compact ? (
+  <Fragment set:html={musicSliceCompactHtml(songs)} />
+) : (
 <section class="slice slice--music">
   <AlbumMosaic songs={songs} />
   <p class="slice-count">{songs.length} song{songs.length !== 1 ? 's' : ''}</p>
-  {!compact && (
-    <ol class="song-list">
-      {songs.map((song) => (
-        <li class="song-item">
-          <span class="song-info">
-            {song.spotify_url ? (
-              <a href={song.spotify_url} class="song-title" target="_blank" rel="noopener noreferrer">{song.track_name}</a>
-            ) : (
-              <span class="song-title">{song.track_name}</span>
-            )}
-            {song.artist_name && <span class="song-artist">{song.artist_name}</span>}
-            {song.album_name && <span class="song-album">{song.album_name}</span>}
-          </span>
-          <time class="song-liked-at" datetime={song.liked_at}>
-            {new Date(song.liked_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
-          </time>
-        </li>
-      ))}
-    </ol>
-  )}
+  <ol class="song-list">
+    {songs.map((song) => (
+      <li class="song-item">
+        <span class="song-info">
+          {song.spotify_url ? (
+            <a href={song.spotify_url} class="song-title" target="_blank" rel="noopener noreferrer">{song.track_name}</a>
+          ) : (
+            <span class="song-title">{song.track_name}</span>
+          )}
+          {song.artist_name && <span class="song-artist">{song.artist_name}</span>}
+          {song.album_name && <span class="song-album">{song.album_name}</span>}
+        </span>
+        <time class="song-liked-at" datetime={song.liked_at}>
+          {new Date(song.liked_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
+        </time>
+      </li>
+    ))}
+  </ol>
 </section>
+)}
 
-<style>
+<style is:global>
   @import '../../../styles/tokens.css';
 
-  .slice { margin: var(--space-lg) 0; }
-  .slice-count {
+  .slice--music { margin: var(--space-lg) 0; }
+  .slice--music .slice-count {
     font-size: var(--text-xs);
     color: var(--text-secondary);
     margin: var(--space-xs) 0 0 0;
   }
-  .song-list { list-style: none; padding: 0; margin: var(--space-lg) 0 0 0; }
-  .song-item {
+  .slice--music .song-list { list-style: none; padding: 0; margin: var(--space-lg) 0 0 0; }
+  .slice--music .song-item {
     display: flex;
     justify-content: space-between;
     gap: var(--space-md);
     padding: var(--space-sm) 0;
     border-bottom: 1px solid var(--gradient-primary-subtle);
   }
-  .song-info { display: flex; flex-wrap: wrap; gap: 0 var(--space-sm); min-width: 0; }
-  .song-title { font-weight: var(--font-semibold); color: var(--text-primary); }
+  .slice--music .song-info { display: flex; flex-wrap: wrap; gap: 0 var(--space-sm); min-width: 0; }
+  .slice--music .song-title { font-weight: var(--font-semibold); color: var(--text-primary); }
   a.song-title:hover { color: var(--accent-primary); }
-  .song-artist, .song-album { color: var(--text-secondary); font-size: var(--text-sm); }
-  .song-album { font-style: italic; }
-  .song-liked-at { font-size: var(--text-xs); color: var(--text-secondary); white-space: nowrap; flex-shrink: 0; }
+  .slice--music .song-artist, .slice--music .song-album { color: var(--text-secondary); font-size: var(--text-sm); }
+  .slice--music .song-album { font-style: italic; }
+  .slice--music .song-liked-at { font-size: var(--text-xs); color: var(--text-secondary); white-space: nowrap; flex-shrink: 0; }
 </style>

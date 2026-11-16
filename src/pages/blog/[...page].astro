@@ -16,7 +16,8 @@ import ImageGallery from '@components/modals/ImageGallery.astro';
 import AlbumMosaic from '@components/blog/AlbumMosaic.astro';
 import PostSlices from '@components/blog/slices/PostSlices.astro';
 import DoodleOverlay from '@components/common/DoodleOverlay.astro';
-import { loadDataPool, resolveSlices, type Entry } from '@lib/slices';
+import { loadDataPool, resolveSlices } from '@lib/slices';
+import { feedShape, quoteHtml } from '@lib/feed-card';
 
 export const getStaticPaths = (async () => {
   const posts = await fetchBlogPosts();
@@ -111,48 +112,8 @@ const slicesBySlug = new Map(
   ),
 );
 
-// How a post shows on the feed follows from what it holds (docs/blog-conventions.md):
-// - A post whose only slice picks definitions, or one link, and that has no
-//   body is a beat: a smaller title, no date, tagline or tags.
-// - A post about one definition (or a definition beat) is titled with the
-//   quoted term, and the definition sits right under the title.
-// - A post whose only slice picks one link is titled with that link, which
-//   links out with ↗; the slice itself is not drawn.
-// - A post with no body whose only slice picks one saved album is an album
-//   beat: its title links to the album on Spotify with ↗, over the cover.
-const onlyDefinitions = (slug: string) => {
-  const s = slicesBySlug.get(slug) ?? [];
-  return s.length === 1 && s[0].kind === 'definitions' ? s[0].definitions : null;
-};
-const onlyTastes = (slug: string) => {
-  const s = slicesBySlug.get(slug) ?? [];
-  return s.length === 1 && s[0].kind === 'tastes' ? s[0].tastes : null;
-};
-const onlyAlbum = (slug: string) => {
-  const s = slicesBySlug.get(slug) ?? [];
-  return s.length === 1 && s[0].kind === 'albums' && s[0].albums.length === 1 ? s[0].albums[0] : null;
-};
-const onlyLink = (slug: string) => {
-  const s = slicesBySlug.get(slug) ?? [];
-  return s.length === 1 && s[0].kind === 'links' && !s[0].tags && s[0].links.length === 1 ? s[0].links[0] : null;
-};
-
-// A definition's credit, from its own sources: a link source links out with ↗
-// (labelled with the source's title), a citation shows its attribution.
-const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-const creditHtml = (d: Entry) => {
-  const parts = (d.sources ?? []).map((src) =>
-    src.type === 'link' && src.url
-      ? `<a href="${esc(src.url)}" target="_blank" rel="noopener noreferrer">${esc(src.title || src.url)}</a>&nbsp;↗`
-      : esc(src.attribution || src.title || ''),
-  ).filter(Boolean);
-  return parts.length ? `<span class="quote-credit">— ${parts.join(', ')}</span>` : '';
-};
-// A picked definition as a quote; `term` puts its term, linked to the dictionary, in front
-const quoteHtml = (d: Entry, term: 'none' | 'plain' | 'linked') =>
-  (term === 'linked' ? `<strong><a href="/blog/dictionary/${esc(d.slug)}">${esc(d.term)}</a></strong>: `
-    : term === 'plain' ? `<strong>${esc(d.term)}</strong>: ` : '')
-  + marked.parseInline(d.definition) + creditHtml(d);
+// How a post shows on the feed follows from what it holds: see src/lib/feed-card.ts,
+// which the live editor's draft preview shares so a draft looks like what it publishes as.
 
 // Published link documents; feeds the sidebar "Links" card
 const totalLinks = (await loadDataPool()).links.length;
@@ -220,10 +181,11 @@ const jsonLd = {
       <div class="main-content">
         {posts.length > 0 && (
           <section id="blog" class="featured-posts-section">
-            {/* data-cms-list + the template below let the editor show unpublished
-                posts here while editing. Latest quarter only: that is where a new
-                post would land. */}
-            <div class="log-feed" data-cms-list={isLatest ? 'blog_post' : undefined}>
+            {/* data-cms-list lets the live editor preview this feed: live posts
+                with unpublished edits, on every quarter, and with the template
+                below (latest quarter only, where a new post would land) the
+                unpublished posts too. */}
+            <div class="log-feed" data-cms-list="blog_post">
               {posts.map((post) => {
                 // Blog posts (not gateway-synced dumps/outings) can be edited
                 // inline from the index. data-cms-id scopes which document a
@@ -236,16 +198,9 @@ const jsonLd = {
                 // shows its opening, and its title leads to the rest.
                 const showsFullBody = !excerpt && SHORT_BODY_CHARS >= body.length;
                 const postHref = `/blog/${post.slug}`;
-                const pickedDefs = onlyDefinitions(post.slug);
-                const pickedLink = onlyLink(post.slug);
-                const pickedTastes = onlyTastes(post.slug);
-                const pickedAlbum = onlyAlbum(post.slug);
-                const isBeat = !!(pickedDefs || pickedLink || pickedTastes || pickedAlbum) && !body.trim();
-                // Where a title that links out goes: a link post's link, or an album beat's album
-                const outHref = pickedLink?.url ?? (isBeat ? pickedAlbum?.spotify_url : undefined);
+                const { pickedDefs, pickedLink, isBeat, outHref, defTitle } = feedShape(slicesBySlug.get(post.slug) ?? [], body);
                 // A card cut short has no other way to the rest, so its title leads to the post page
                 const isCut = !isBeat && !outHref && !excerpt && !showsFullBody;
-                const defTitle = pickedDefs && (pickedDefs.length === 1 || isBeat) ? pickedDefs : null;
                 // The quote marks around a definition title are red
                 const titleMarkup = defTitle
                   ? defTitle.map((x, i) => <>{i > 0 && ' / '}<span class="title-quote">“</span>{x.term}<span class="title-quote">”</span></>)
@@ -362,7 +317,10 @@ const jsonLd = {
                       <blockquote class="post-quote" set:html={quoteHtml(x, 'linked')} />
                     ))}
 
-                    {!pickedLink && !pickedDefs && <PostSlices slices={slicesBySlug.get(post.slug) ?? []} compact beat={isBeat} />}
+                    {/* data-cms-slices: the live editor's draft preview redraws this from a post's unpublished edits */}
+                    <div class="post-slices" data-cms-slices>
+                      {!pickedLink && !pickedDefs && <PostSlices slices={slicesBySlug.get(post.slug) ?? []} compact beat={isBeat} />}
+                    </div>
 
                     {!isBeat && post.tags && post.tags.length > 0 && (
                       <div class="post-tags">
@@ -384,7 +342,12 @@ const jsonLd = {
         {/* Card prototype the editor copies for each unpublished post (see
             astraeus embed/drafts.js). Same markup and classes as the full post
             card above, so it is styled the same; data-cms-fill says which field
-            fills which element. Never visible: <template> contents don't render. */}
+            fills which element. The live editor's draft preview
+            (src/scripts/draft-preview.ts) fills the rest from the draft: the hero
+            image, slices, definition quotes, tags and the beat form, using the
+            same code as the build (src/lib/slice-html.ts, src/lib/feed-card.ts).
+            [data-cms-preview-protos] holds styled pieces for it to clone. Never
+            visible: <template> contents don't render. */}
         {isLatest && (
           <template data-cms-draft-template="blog_post">
             <article class="log-record" data-type="post">
@@ -394,6 +357,8 @@ const jsonLd = {
                   <h2 class="post-title">
                     <span class="post-title-text" data-cms-field="title" data-cms-fill="title"></span>
                   </h2>
+                  <div class="post-hero-image" data-cms-preview="image" hidden></div>
+                  <div class="post-slices" data-cms-preview="lead"></div>
                   <p class="post-description" data-cms-field="description" data-cms-fill="description"></p>
                   <div
                     class="post-excerpt-preview"
@@ -402,6 +367,19 @@ const jsonLd = {
                     data-cms-fill="body_markdown"
                     data-cms-fill-format="excerpt"
                   />
+                  <div class="post-slices" data-cms-preview="quotes"></div>
+                  <div class="post-slices" data-cms-slices></div>
+                  <div class="post-tags" data-cms-preview="tags" hidden></div>
+                  <div data-cms-preview-protos hidden>
+                    <a class="post-title-link" data-proto="title-link" target="_blank" rel="noopener noreferrer"></a>
+                    <span class="post-title-ext" data-proto="title-ext" aria-label="external link"> ↗</span>
+                    <span class="post-title-text" data-proto="title-text"></span>
+                    <span class="title-quote" data-proto="title-quote">“</span>
+                    <blockquote class="post-quote" data-proto="quote"></blockquote>
+                    <div class="post-content-preview full-content" data-proto="link-description"><p></p></div>
+                    <img data-proto="image" alt="" loading="lazy" />
+                    <Badge variant="tag" href="/blog/tags/" size="sm" data-proto="tag">#</Badge>
+                  </div>
                 </Card>
               </div>
             </article>
@@ -478,6 +456,9 @@ const jsonLd = {
   <PerformanceOptimizer />
 
   <script>
+    // The live editor's draft preview: the site's half (listens only; see the file)
+    import '../../scripts/draft-preview';
+
     // Wire up nature photo grids to the image gallery lightbox
     document.querySelectorAll('.nature-photo-grid').forEach((grid) => {
       const urls = JSON.parse((grid as HTMLElement).dataset.galleryUrls || '[]');
@@ -1260,6 +1241,8 @@ const jsonLd = {
   }
   .record-date-link { text-decoration: none; color: inherit; }
   .record-date-link[href]:hover .record-date { color: var(--accent-primary); text-decoration: underline; }
+  /* Wrappers the live editor's draft preview fills; they add no box, so an empty one leaves no gap */
+  .post-slices { display: contents; }
   .post-title-ext { font-family: var(--font-body); font-size: 0.7em; color: var(--text-secondary); }
 
   /* ---- Record body: neutralize old brutalist card chrome ---- */

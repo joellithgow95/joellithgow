@@ -10,7 +10,9 @@ export type TasteShape = AstraeusDocument<TasteShapeDoc>;
 
 /** The CMS the site was built from; a photo that is a media key is served from its /media. */
 function cmsBase(): string {
-  const url = import.meta.env.ASTRAEUS_URL || process.env.ASTRAEUS_URL || '';
+  // In the browser (the live editor's draft preview) there is no `process` and no build-time URL.
+  const fromProcess = typeof process !== 'undefined' ? process.env?.ASTRAEUS_URL : undefined;
+  const url = import.meta.env.ASTRAEUS_URL || fromProcess || '';
   return url.replace(/\/+$/, '');
 }
 
