@@ -45,18 +45,30 @@ export const getStaticPaths = (async () => {
   // Full timeline for the navigator, oldest→newest (left→right).
   const timeline = [...keysDesc].reverse().map((key) => ({ ...period(key), count: buckets.get(key)!.length }));
 
+  // The dates each page holds, for the live editor's drafts (a draft is drawn on
+  // the page whose range holds its publish date): from this quarter's start to
+  // the next newer page's, so a draft in a quarter with no posts yet lands on
+  // the page before it. The oldest page has no start, the newest no end.
+  const quarterStart = (key: string) => {
+    const [y, q] = key.split('-q').map(Number);
+    return new Date(Date.UTC(y, (q - 1) * 3, 1)).toISOString().slice(0, 10);
+  };
+
   return keysDesc.map((key, i) => ({
     params: { page: i === 0 ? undefined : key },
     props: {
       posts: buckets.get(key)!,
       currentKey: key,
       timeline,
-      isLatest: i === 0,
+      draftRange: {
+        from: i === keysDesc.length - 1 ? undefined : quarterStart(key),
+        until: i === 0 ? undefined : quarterStart(keysDesc[i - 1]),
+      },
     },
   }));
 }) satisfies GetStaticPaths;
 
-const { posts, currentKey, timeline, isLatest } = Astro.props;
+const { posts, currentKey, timeline, draftRange } = Astro.props;
 
 // Group the full timeline into per-year blocks. The ←/→ buttons page through
 // the years client-side (no navigation); only clicking a Q# loads that quarter.
@@ -182,10 +194,16 @@ const jsonLd = {
         {posts.length > 0 && (
           <section id="blog" class="featured-posts-section">
             {/* data-cms-list lets the live editor preview this feed: live posts
-                with unpublished edits, on every quarter, and with the template
-                below (latest quarter only, where a new post would land) the
-                unpublished posts too. */}
-            <div class="log-feed" data-cms-list="blog_post">
+                with unpublished edits, and with the template below the
+                unpublished posts too. The range and each card's data-cms-date
+                put a draft on the quarter page its date falls in, among the
+                live posts by date (astraeus editor README, *Where a draft lands*). */}
+            <div
+              class="log-feed"
+              data-cms-list="blog_post"
+              data-cms-list-from={draftRange.from}
+              data-cms-list-until={draftRange.until}
+            >
               {posts.map((post) => {
                 // Blog posts (not gateway-synced dumps/outings) can be edited
                 // inline from the index. data-cms-id scopes which document a
@@ -210,6 +228,7 @@ const jsonLd = {
                   class="log-record"
                   data-size={isBeat ? 'beat' : undefined}
                   data-type={post.kind}
+                  data-cms-date={new Date(post.publish_date).toISOString()}
                   data-cms-id={isEditorial ? (post as any)._id : undefined}
                   data-cms-type={isEditorial ? 'blog_post' : undefined}
                 >
@@ -347,44 +366,43 @@ const jsonLd = {
             image, slices, definition quotes, tags and the beat form, using the
             same code as the build (src/lib/slice-html.ts, src/lib/feed-card.ts).
             [data-cms-preview-protos] holds styled pieces for it to clone. Never
-            visible: <template> contents don't render. */}
-        {isLatest && (
-          <template data-cms-draft-template="blog_post">
-            <article class="log-record" data-type="post">
-              <div class="record-body">
-                <time class="record-date" data-cms-fill="publish_date" data-cms-fill-format="date"></time>
-                <Card variant="flat" as="article" class="featured-post-card" data-post-type="post">
-                  <h2 class="post-title">
-                    <span class="post-title-text" data-cms-field="title" data-cms-fill="title"></span>
-                  </h2>
-                  <div class="post-hero-image" data-cms-preview="image" hidden></div>
-                  <div class="post-slices" data-cms-preview="lead"></div>
-                  <p class="post-description" data-cms-field="description" data-cms-fill="description"></p>
-                  <div
-                    class="post-excerpt-preview"
-                    data-cms-field="body_markdown"
-                    data-cms-collapsible=""
-                    data-cms-fill="body_markdown"
-                    data-cms-fill-format="excerpt"
-                  />
-                  <div class="post-slices" data-cms-preview="quotes"></div>
-                  <div class="post-slices" data-cms-slices></div>
-                  <div class="post-tags" data-cms-preview="tags" hidden></div>
-                  <div data-cms-preview-protos hidden>
-                    <a class="post-title-link" data-proto="title-link" target="_blank" rel="noopener noreferrer"></a>
-                    <span class="post-title-ext" data-proto="title-ext" aria-label="external link"> ↗</span>
-                    <span class="post-title-text" data-proto="title-text"></span>
-                    <span class="title-quote" data-proto="title-quote">“</span>
-                    <blockquote class="post-quote" data-proto="quote"></blockquote>
-                    <div class="post-content-preview full-content" data-proto="link-description"><p></p></div>
-                    <img data-proto="image" alt="" loading="lazy" />
-                    <Badge variant="tag" href="/blog/tags/" size="sm" data-proto="tag">#</Badge>
-                  </div>
-                </Card>
-              </div>
-            </article>
-          </template>
-        )}
+            visible: <template> contents don't render. On every quarter page: a
+            draft is drawn on the page its date falls in. */}
+        <template data-cms-draft-template="blog_post">
+          <article class="log-record" data-type="post">
+            <div class="record-body">
+              <time class="record-date" data-cms-fill="publish_date" data-cms-fill-format="date"></time>
+              <Card variant="flat" as="article" class="featured-post-card" data-post-type="post">
+                <h2 class="post-title">
+                  <span class="post-title-text" data-cms-field="title" data-cms-fill="title"></span>
+                </h2>
+                <div class="post-hero-image" data-cms-preview="image" hidden></div>
+                <div class="post-slices" data-cms-preview="lead"></div>
+                <p class="post-description" data-cms-field="description" data-cms-fill="description"></p>
+                <div
+                  class="post-excerpt-preview"
+                  data-cms-field="body_markdown"
+                  data-cms-collapsible=""
+                  data-cms-fill="body_markdown"
+                  data-cms-fill-format="excerpt"
+                />
+                <div class="post-slices" data-cms-preview="quotes"></div>
+                <div class="post-slices" data-cms-slices></div>
+                <div class="post-tags" data-cms-preview="tags" hidden></div>
+                <div data-cms-preview-protos hidden>
+                  <a class="post-title-link" data-proto="title-link" target="_blank" rel="noopener noreferrer"></a>
+                  <span class="post-title-ext" data-proto="title-ext" aria-label="external link"> ↗</span>
+                  <span class="post-title-text" data-proto="title-text"></span>
+                  <span class="title-quote" data-proto="title-quote">“</span>
+                  <blockquote class="post-quote" data-proto="quote"></blockquote>
+                  <div class="post-content-preview full-content" data-proto="link-description"><p></p></div>
+                  <img data-proto="image" alt="" loading="lazy" />
+                  <Badge variant="tag" href="/blog/tags/" size="sm" data-proto="tag">#</Badge>
+                </div>
+              </Card>
+            </div>
+          </article>
+        </template>
 
         {/* Quarter timeline — ←/→ page through 2-year blocks (client-side); click a Q# to open it */}
         {timeline.length > 1 && (
