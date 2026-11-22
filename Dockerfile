@@ -17,7 +17,7 @@ WORKDIR /app
 # Pin the astraeus workspace to a commit for reproducible builds. Bump
 # ASTRAEUS_REF (or pass --build-arg ASTRAEUS_REF=<sha|tag>) to pull newer
 # astraeus package changes.
-ARG ASTRAEUS_REF=c4af226c2342dc4a31c0a76524679d4c4cd49b0b
+ARG ASTRAEUS_REF=100e88d050ba0a480e28267c8da649cdc78f4f25
 RUN git clone https://github.com/joellithgow95/astraeus.git \
     && git -C astraeus checkout "${ASTRAEUS_REF}"
 
