@@ -17,6 +17,7 @@ on:
       - 'cms/**'
       - 'Dockerfile'
       - 'pyproject.toml'
+      - 'uv.lock'
       - '.github/workflows/build-cms.yml'
   workflow_dispatch:
     inputs:
